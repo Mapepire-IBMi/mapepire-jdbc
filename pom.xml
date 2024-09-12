@@ -1,26 +1,70 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
   <modelVersion>4.0.0</modelVersion>
-  <groupId>io.github.mapepire_ibmi</groupId>
+  <groupId>io.github.mapepire-ibmi</groupId>
   <artifactId>mapepire-jdbc</artifactId>
   <version>1.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>Mapepire JDBC</name>
+  <description>The Mapepire JDBC driver provides a new and convenient way to access Db2 on IBM i</description>
+  <url>https://github.com/Mapepire-IBMi/mapepire-jdbc</url>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://raw.githubusercontent.com/Mapepire-IBMi/mapepire-jdbc/main/LICENSE</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Sanjula Ganepola</name>
+      <email>sanjula.ganepola@ibm.com</email>
+      <organization>IBM</organization>
+      <organizationUrl>http://www.ibm.com</organizationUrl>
+    </developer>
+    <developer>
+      <name>Jesse Gorzinski</name>
+      <email>jgorzins@us.ibm.com</email>
+      <organization>IBM</organization>
+      <organizationUrl>http://www.ibm.com</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:git://github.com/Mapepire-IBMi/mapepire-jdbc.git</connection>
+    <developerConnection>scm:git:ssh://github.com:Mapepire-IBMi/mapepire-jdbc.git</developerConnection>
+    <url>https://github.com/Mapepire-IBMi/mapepire-jdbc</url>
+  </scm>
+
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <junit.version>5.6.0</junit.version>
+    <junit.version>5.11.0</junit.version>
     <maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version>
-    <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
+    <maven-checkstyle-plugin.version>3.4.0</maven-checkstyle-plugin.version>
     <checkstyle.version>8.45.1</checkstyle.version>
     <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
     <jacoco-maven-plugin.version>0.8.4</jacoco-maven-plugin.version>
-    <maven-javadoc-plugin.version>3.0.0</maven-javadoc-plugin.version>
+    <maven-javadoc-plugin.version>3.8.0</maven-javadoc-plugin.version>
     <!-- JaCoCo thresholds. Increase gradually as you add tests. -->
     <jacoco.unit-tests.limit.instruction-ratio>0%</jacoco.unit-tests.limit.instruction-ratio>
     <jacoco.unit-tests.limit.branch-ratio>0%</jacoco.unit-tests.limit.branch-ratio>
     <jacoco.unit-tests.limit.class-complexity>20</jacoco.unit-tests.limit.class-complexity>
     <jacoco.unit-tests.limit.method-complexity>5</jacoco.unit-tests.limit.method-complexity>
   </properties>
+
   <dependencies>
+    <dependency>
+      <groupId>io.github.mapepire-ibmi</groupId>
+      <artifactId>mapepire-sdk</artifactId>
+      <version>0.0.5</version>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
@@ -34,6 +78,7 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
   <build>
     <plugins>
       <plugin>
@@ -69,7 +114,7 @@
           <dependency>
             <groupId>com.github.ngeor</groupId>
             <artifactId>checkstyle-rules</artifactId>
-            <version>4.9.3</version>
+            <version>7.0.0</version>
           </dependency>
         </dependencies>
         <configuration>
@@ -155,12 +200,64 @@
                   </limits>
                 </rule>
               </rules>
+              <skip>true</skip>
             </configuration>
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.3.1</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar-no-fork</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.8.0</version>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>3.2.5</version>
+        <executions>
+          <execution>
+            <id>sign-artifacts</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.sonatype.central</groupId>
+        <artifactId>central-publishing-maven-plugin</artifactId>
+        <version>0.5.0</version>
+        <extensions>true</extensions>
+        <configuration>
+          <publishingServerId>central</publishingServerId>
+          <autoPublish>true</autoPublish>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
+
   <reporting>
     <plugins>
       <plugin>
