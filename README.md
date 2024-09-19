@@ -38,17 +38,17 @@ The following is the database connection URL syntax:
 jdbc:mapepire://[host][:port][;propertyName1][=propertyValue1][;propertyName2][=propertyValue2]...
 ```
 
-* `host` (required): The hostname or IP address of the IBM i.
-* `port` (optional): The port number where the `mapepire-server` is running. If not specified, the default port is `8076`.
-* `propertyName=propertyValue` (optional): Represents an ampersand-separated list of properties.
+* `host` (*required*): The hostname or IP address of the IBM i.
+* `port` (*optional*): The port number where the `mapepire-server` is running. If not specified, the default port is `8076`.
+* `propertyName=propertyValue` (*optional*): Represents an ampersand-separated list of properties.
 
 ### Connection Properties
 
 The following connection properties are supported:
 
-* `USER`: The IBM i user ID.
-* `PASSWORD`: The IBM i user password.
-* Any [JDBC property](https://www.ibm.com/docs/en/i/7.4?topic=jdbc-toolbox-java-properties)
+* `USER` (*required*): The IBM i user ID.
+* `PASSWORD` (*required*): The IBM i user password.
+* Any [JDBC property](https://www.ibm.com/docs/en/i/7.4?topic=jdbc-toolbox-java-properties) (*optional*)
 
 ### Example Connections
 
