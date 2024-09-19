@@ -55,19 +55,19 @@ The following connection properties are supported:
 1. Using `Properties` object:
 
 ```java
-final Properties p = new Properties();
+Properties p = new Properties();
 p.put("USER", "myuser");
 p.put("PASSWORD", "mypassword");
 p.put("naming", "system");
 p.put("errors", "full");
 
-final Connection connection = DriverManager.getConnection("jdbc:mapepire://ossbuild.rzke.de:8076", p);
+Connection connection = DriverManager.getConnection("jdbc:mapepire://ossbuild.rzke.de:8076", p);
 ```
 
 2. Using connection string:
 
 ```java
-final Connection connection = DriverManager.getConnection("jdbc:mapepire://ossbuild.rzke.de:8076;USER=myuser;PASSWORD=mypassword;naming=system;errors=full");
+Connection connection = DriverManager.getConnection("jdbc:mapepire://ossbuild.rzke.de:8076;USER=myuser;PASSWORD=mypassword;naming=system;errors=full");
 ```
 
 ## Examples
