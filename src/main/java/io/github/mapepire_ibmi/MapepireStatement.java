@@ -6,36 +6,62 @@ import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
 
+import io.github.mapepire_ibmi.types.QueryResult;
+
 public class MapepireStatement implements Statement {
+    private final MapepireConnection connection;
+    private Query query;
+    private QueryResult<Object> result;
+    private int fetchSize;
+
+    public MapepireStatement(MapepireConnection connection) {
+        this.connection = connection;
+    }
 
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'unwrap'");
+        if (iface.isInstance(query)) {
+            return iface.cast(query);
+        }
+
+        throw new SQLException("Cannot unwrap to " + iface);
     }
 
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isWrapperFor'");
+        return iface.isInstance(query);
     }
 
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'executeQuery'");
+        try {
+            Query query = this.connection.getJob().query(sql);
+            QueryResult<Object> result = query.execute().get();
+
+            return new MapepireResultSet(result);
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     @Override
     public int executeUpdate(String sql) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'executeUpdate'");
+        try {
+            Query query = this.connection.getJob().query(sql);
+            QueryResult<Object> result = query.execute().get();
+            return result.getUpdateCount();
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     @Override
     public void close() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'close'");
+        try {
+            this.query.close().get();
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     @Override
@@ -106,26 +132,38 @@ public class MapepireStatement implements Statement {
 
     @Override
     public boolean execute(String sql) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'execute'");
+        try {
+            Query query = this.connection.getJob().query(sql);
+            this.result = query.execute().get();
+
+            return result.getHasResults();
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     @Override
     public ResultSet getResultSet() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getResultSet'");
+        return new MapepireResultSet(result);
     }
 
     @Override
     public int getUpdateCount() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getUpdateCount'");
+        return result.getUpdateCount();
     }
 
     @Override
     public boolean getMoreResults() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getMoreResults'");
+        if (this.result.getIsDone()) {
+            return false;
+        } else {
+            try {
+                this.result = this.query.fetchMore(this.fetchSize).get();
+                return this.result.getHasResults();
+            } catch (Exception e) {
+                throw new SQLException(e);
+            }
+        }
     }
 
     @Override
@@ -142,14 +180,12 @@ public class MapepireStatement implements Statement {
 
     @Override
     public void setFetchSize(int rows) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setFetchSize'");
+        this.fetchSize = rows;
     }
 
     @Override
     public int getFetchSize() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getFetchSize'");
+        return this.fetchSize;
     }
 
     @Override
@@ -184,8 +220,7 @@ public class MapepireStatement implements Statement {
 
     @Override
     public Connection getConnection() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getConnection'");
+        return this.connection;
     }
 
     @Override
