@@ -1,10 +1,6 @@
 package io.github.mapepire_ibmi;
 
-import java.io.IOException;
 import java.io.StringReader;
-import java.net.URISyntaxException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverPropertyInfo;
@@ -12,17 +8,22 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Collections;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.github.mapepire_ibmi.types.DaemonServer;
 import io.github.mapepire_ibmi.types.JDBCOptions;
-import io.github.mapepire_ibmi.types.exceptions.UnknownServerException;
 
 public class MapepireDriver implements Driver {
 
     private static final int MAJOR_VERSION = 1;
     private static final int MINOR_VERSION = 0;
+    private static final String URL_REGEX = "^(?i)jdbc:mapepire://(.+?)(:(\\d+))?(;.+?=.+?)*$";
+    private static final String HOST = "HOST";
+    private static final String USER = "USER";
+    private static final String PASSWORD = "PASSWORD";
+    private static final String PORT = "PORT";
 
     @Override
     public int getMajorVersion() {
@@ -37,7 +38,7 @@ public class MapepireDriver implements Driver {
     @Override
     public Connection connect(String url, Properties info) throws SQLException {
         if (!acceptsURL(url)) {
-            return null;
+            throw new SQLException("Invalid URL");
         }
 
         try {
@@ -48,6 +49,15 @@ public class MapepireDriver implements Driver {
                 } else {
                     p.put(prop, info.get(prop));
                 }
+            }
+
+            Pattern pattern = Pattern.compile(URL_REGEX);
+            Matcher matcher = pattern.matcher(url);
+            if (matcher.find()) {
+                p.put(HOST, matcher.group(1));
+                p.put(PORT, matcher.group(3));
+            } else {
+                throw new SQLException("Invalid URL");
             }
 
             final String propertiesFromConnectionString = url.contains(";") ? url.replaceFirst("^[^;]*;", "") : "";
@@ -62,38 +72,40 @@ public class MapepireDriver implements Driver {
             }
 
             DaemonServer server = new DaemonServer();
-            Object prop = p.remove("HOST");
+            Object prop = p.remove(HOST);
             if (prop != null) {
                 server.setHost(prop.toString());
             }
-            prop = p.remove("USER");
+            prop = p.remove(USER);
             if (prop != null) {
                 server.setUser(prop.toString());
             }
-            prop = p.remove("PASSWORD");
+            prop = p.remove(PASSWORD);
             if (prop != null) {
                 server.setPassword(prop.toString());
             }
-            prop = p.remove("PORT");
+            prop = p.remove(PORT);
             if (prop != null) {
-                server.setPort((Integer) prop);
+                server.setPort(Integer.parseInt((String) prop));
             }
-            server.setIgnoreUnauthorized(true);
-            server.setCa("");
+            server.setRejectUnauthorized(false);
 
             JDBCOptions options = new JDBCOptions(p);
             SqlJob job = new SqlJob(options);
-            job.connect(server);
+            job.connect(server).get();
             return new MapepireConnection(job);
-        } catch (IOException | KeyManagementException | NoSuchAlgorithmException | InterruptedException
-                | ExecutionException | URISyntaxException | UnknownServerException e) {
+        } catch (Exception e) {
             throw new SQLException(e);
         }
     }
 
     @Override
     public boolean acceptsURL(String url) throws SQLException {
-        return url.matches("^(?i)jdbc:mapepire://(.+?)(:\\d+)?(;.+?=.+?)*$");
+        if (url == null) {
+            return false;
+        } else {
+            return url.matches(URL_REGEX);
+        }
     }
 
     @Override
