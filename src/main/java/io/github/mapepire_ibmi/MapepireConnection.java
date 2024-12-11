@@ -15,28 +15,42 @@ import java.sql.SQLXML;
 import java.sql.Savepoint;
 import java.sql.Statement;
 import java.sql.Struct;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
+import io.github.mapepire_ibmi.types.JobStatus;
+import io.github.mapepire_ibmi.types.QueryResult;
+
 public class MapepireConnection implements Connection {
+    private final SqlJob job;
+
+    public MapepireConnection(SqlJob job) {
+        this.job = job;
+    }
+
+    public SqlJob getJob() {
+        return this.job;
+    }
 
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'unwrap'");
+        if (iface.isInstance(job)) {
+            return iface.cast(job);
+        }
+
+        throw new SQLException("Cannot unwrap to " + iface);
     }
 
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isWrapperFor'");
+        return iface.isInstance(job);
     }
 
     @Override
     public Statement createStatement() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createStatement'");
+        return new MapepireStatement(this);
     }
 
     @Override
@@ -71,26 +85,30 @@ public class MapepireConnection implements Connection {
 
     @Override
     public void commit() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'commit'");
+        try {
+            this.job.execute("COMMIT").get();
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     @Override
     public void rollback() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'rollback'");
+        try {
+            this.job.execute("ROLLBACK").get();
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     @Override
     public void close() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'close'");
+        this.job.close();
     }
 
     @Override
     public boolean isClosed() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isClosed'");
+        return this.job.getStatus() == JobStatus.Ended;
     }
 
     @Override
@@ -101,8 +119,12 @@ public class MapepireConnection implements Connection {
 
     @Override
     public void setReadOnly(boolean readOnly) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setReadOnly'");
+        try {
+            String type = readOnly ? "READ ONLY" : "READ WRITE";
+            this.job.execute("SET TRANSACTION " + type).get();
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     @Override
@@ -125,8 +147,32 @@ public class MapepireConnection implements Connection {
 
     @Override
     public void setTransactionIsolation(int level) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setTransactionIsolation'");
+        try {
+            String isolationLevel = "";
+            switch (level) {
+                case Connection.TRANSACTION_NONE:
+                    isolationLevel = "NO COMMIT";
+                    break;
+                case Connection.TRANSACTION_READ_COMMITTED:
+                    isolationLevel = "READ COMMITTED";
+                    break;
+                case Connection.TRANSACTION_READ_UNCOMMITTED:
+                    isolationLevel = "READ UNCOMMITTED";
+                    break;
+                case Connection.TRANSACTION_REPEATABLE_READ:
+                    isolationLevel = "REPEATABLE READ";
+                    break;
+                case Connection.TRANSACTION_SERIALIZABLE:
+                    isolationLevel = "SERIALIZABLE";
+                    break;
+                default:
+                    return;
+            }
+
+            this.job.execute("SET TRANSACTION ISOLATION LEVEL " + isolationLevel).get();
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     @Override
@@ -321,20 +367,30 @@ public class MapepireConnection implements Connection {
 
     @Override
     public void setSchema(String schema) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setSchema'");
+        try {
+            this.job.execute("SET SCHEMA " + schema).get();
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     @Override
     public String getSchema() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getSchema'");
+        try {
+            QueryResult<LinkedHashMap<String, String>> result = this.job.<LinkedHashMap<String, String>>execute("SELECT CURRENT SCHEMA FROM SYSIBM.SYSDUMMY1").get();
+            if (result.getSuccess()) {
+                return result.getData().get(0).entrySet().iterator().next().getValue();
+            } else {
+                throw new SQLException(result.getError(), result.getSqlState());
+            }
+        } catch (Exception e) {
+            throw new SQLException(e);
+        }
     }
 
     @Override
     public void abort(Executor executor) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'abort'");
+        this.job.close();
     }
 
     @Override
@@ -347,5 +403,5 @@ public class MapepireConnection implements Connection {
     public int getNetworkTimeout() throws SQLException {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getNetworkTimeout'");
-    }    
+    }
 }
