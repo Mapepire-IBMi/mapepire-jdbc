@@ -21,7 +21,6 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import io.github.mapepire_ibmi.types.QueryResult;
@@ -29,7 +28,7 @@ import io.github.mapepire_ibmi.types.QueryResult;
 public class MapepireResultSet implements ResultSet {
     private QueryResult<Object> result;
     private Iterator<Object> rowIterator;
-    private LinkedHashMap<String, Object> currentRow;
+    private Map<String, Object> currentRow;
 
     public MapepireResultSet(QueryResult<Object> result) {
         this.result = result;
@@ -52,7 +51,7 @@ public class MapepireResultSet implements ResultSet {
     @SuppressWarnings("unchecked")
     public boolean next() throws SQLException {
         if (rowIterator.hasNext()) {
-            this.currentRow = (LinkedHashMap<String, Object>) this.rowIterator.next();
+            this.currentRow = (Map<String, Object>) this.rowIterator.next();
             return true;
         }
 
@@ -74,7 +73,7 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public String getString(int columnIndex) throws SQLException {
-        if(this.currentRow == null) {
+        if (this.currentRow == null) {
             throw new SQLException("No current row for ResultSet");
         } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
             throw new SQLException("Invalid column index");

@@ -23,7 +23,7 @@ public final class App {
             Statement statement = connection.createStatement();
             ResultSet rs = statement.executeQuery("SELECT * FROM SAMPLE.DEPARTMENT");
             rs.next();
-            String DEPTNO = rs.getString(1);
+            String deptno = rs.getString(1);
 
             connection.close();
             System.out.println("Done");
