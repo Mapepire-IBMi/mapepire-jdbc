@@ -21,8 +21,17 @@ Full Documentation: https://mapepire-ibmi.github.io
 
 ### Install with `maven`
 
-> [!WARNING]
-> ⚠️ To be added
+Add the dependency to your `pom.xml`:
+
+```xml
+<dependency>
+  <groupId>io.github.mapepire-ibmi</groupId>
+  <artifactId>mapepire-jdbc</artifactId>
+  <version>1.0-SNAPSHOT</version>
+</dependency>
+```
+
+Check [Maven Central](https://central.sonatype.com/artifact/io.github.mapepire-ibmi/mapepire-jdbc/) for the latest released version.
 
 ### Server Component Setup
 
@@ -48,6 +57,7 @@ The following connection properties are supported:
 
 * `USER` (*required*): The IBM i user ID.
 * `PASSWORD` (*required*): The IBM i user password.
+* `REJECTUNAUTHORIZED` (*optional*, default `true`): Whether to verify the `mapepire-server` daemon's TLS certificate. Only set this to `false` for local development against a server with a self-signed certificate — leaving verification enabled is required to protect credentials in transit on any network you don't fully control.
 * Any [JDBC property](https://www.ibm.com/docs/en/i/7.4?topic=jdbc-toolbox-java-properties) (*optional*)
 
 ### Example Connections
@@ -72,5 +82,42 @@ Connection connection = DriverManager.getConnection("jdbc:mapepire://ossbuild.rz
 
 ## Examples
 
-> [!WARNING]
-> ⚠️ To be added
+### Running a query
+
+```java
+Connection connection = DriverManager.getConnection(
+        "jdbc:mapepire://myhost.example.com:8076;USER=myuser;PASSWORD=mypassword");
+
+try (Statement statement = connection.createStatement();
+        ResultSet rs = statement.executeQuery("SELECT * FROM SAMPLE.DEPARTMENT")) {
+    while (rs.next()) {
+        System.out.println(rs.getString("DEPTNO") + ": " + rs.getString("DEPTNAME"));
+    }
+}
+```
+
+### Running a parameterized query
+
+Use a `PreparedStatement` to safely pass user-supplied values without building SQL strings by hand:
+
+```java
+try (PreparedStatement statement = connection.prepareStatement(
+        "SELECT * FROM SAMPLE.EMPLOYEE WHERE WORKDEPT = ?")) {
+    statement.setString(1, "A00");
+
+    try (ResultSet rs = statement.executeQuery()) {
+        while (rs.next()) {
+            System.out.println(rs.getString("LASTNAME"));
+        }
+    }
+}
+```
+
+### Running an update
+
+```java
+try (Statement statement = connection.createStatement()) {
+    int updated = statement.executeUpdate("UPDATE SAMPLE.EMPLOYEE SET SALARY = SALARY * 1.05 WHERE WORKDEPT = 'A00'");
+    System.out.println(updated + " rows updated");
+}
+```

@@ -9,13 +9,35 @@ import java.sql.Statement;
 import io.github.mapepire_ibmi.types.QueryResult;
 
 public class MapepireStatement implements Statement {
+    protected static final int DEFAULT_FETCH_SIZE = 100;
+
     private final MapepireConnection connection;
     private Query query;
     private QueryResult<Object> result;
-    private int fetchSize;
+    private int fetchSize = DEFAULT_FETCH_SIZE;
+    private boolean closed;
 
     public MapepireStatement(MapepireConnection connection) {
         this.connection = connection;
+    }
+
+    protected void checkClosed() throws SQLException {
+        if (this.closed) {
+            throw new SQLException("Statement is closed");
+        }
+    }
+
+    protected MapepireConnection getMapepireConnection() {
+        return this.connection;
+    }
+
+    protected QueryResult<Object> getResult() {
+        return this.result;
+    }
+
+    protected void setExecutionState(Query query, QueryResult<Object> result) {
+        this.query = query;
+        this.result = result;
     }
 
     @Override
@@ -34,11 +56,12 @@ public class MapepireStatement implements Statement {
 
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
+        checkClosed();
         try {
             this.query = this.connection.getJob().query(sql);
-            QueryResult<Object> result = this.query.execute().get();
+            this.result = this.query.execute().get();
 
-            return new MapepireResultSet(result);
+            return new MapepireResultSet(this.result);
         } catch (Exception e) {
             throw new SQLException(e);
         }
@@ -46,10 +69,11 @@ public class MapepireStatement implements Statement {
 
     @Override
     public int executeUpdate(String sql) throws SQLException {
+        checkClosed();
         try {
             this.query = this.connection.getJob().query(sql);
-            QueryResult<Object> result = this.query.execute().get();
-            return result.getUpdateCount();
+            this.result = this.query.execute().get();
+            return this.result.getUpdateCount();
         } catch (Exception e) {
             throw new SQLException(e);
         }
@@ -57,10 +81,17 @@ public class MapepireStatement implements Statement {
 
     @Override
     public void close() throws SQLException {
-        try {
-            this.query.close().get();
-        } catch (Exception e) {
-            throw new SQLException(e);
+        if (this.closed) {
+            return;
+        }
+        this.closed = true;
+
+        if (this.query != null) {
+            try {
+                this.query.close().get();
+            } catch (Exception e) {
+                throw new SQLException(e);
+            }
         }
     }
 
@@ -132,6 +163,7 @@ public class MapepireStatement implements Statement {
 
     @Override
     public boolean execute(String sql) throws SQLException {
+        checkClosed();
         try {
             this.query = this.connection.getJob().query(sql);
             this.result = this.query.execute().get();
@@ -144,16 +176,28 @@ public class MapepireStatement implements Statement {
 
     @Override
     public ResultSet getResultSet() throws SQLException {
+        checkClosed();
+        if (this.result == null) {
+            throw new SQLException("No results available: the statement has not been executed");
+        }
         return new MapepireResultSet(result);
     }
 
     @Override
     public int getUpdateCount() throws SQLException {
+        checkClosed();
+        if (this.result == null) {
+            throw new SQLException("No update count available: the statement has not been executed");
+        }
         return result.getUpdateCount();
     }
 
     @Override
     public boolean getMoreResults() throws SQLException {
+        checkClosed();
+        if (this.result == null) {
+            throw new SQLException("No results available: the statement has not been executed");
+        }
         if (this.result.getIsDone()) {
             return false;
         } else {
@@ -180,7 +224,10 @@ public class MapepireStatement implements Statement {
 
     @Override
     public void setFetchSize(int rows) throws SQLException {
-        this.fetchSize = rows;
+        if (rows < 0) {
+            throw new SQLException("Fetch size must not be negative");
+        }
+        this.fetchSize = rows == 0 ? DEFAULT_FETCH_SIZE : rows;
     }
 
     @Override
@@ -279,8 +326,7 @@ public class MapepireStatement implements Statement {
 
     @Override
     public boolean isClosed() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isClosed'");
+        return this.closed;
     }
 
     @Override

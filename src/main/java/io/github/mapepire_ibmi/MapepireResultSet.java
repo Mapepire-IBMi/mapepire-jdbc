@@ -29,10 +29,26 @@ public class MapepireResultSet implements ResultSet {
     private QueryResult<Object> result;
     private Iterator<Object> rowIterator;
     private Map<String, Object> currentRow;
+    private boolean closed;
+    private boolean lastWasNull;
 
     public MapepireResultSet(QueryResult<Object> result) {
         this.result = result;
         this.rowIterator = this.result.getData().iterator();
+    }
+
+    private Object getValue(int columnIndex) throws SQLException {
+        if (this.closed) {
+            throw new SQLException("ResultSet is closed");
+        } else if (this.currentRow == null) {
+            throw new SQLException("No current row for ResultSet");
+        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
+            throw new SQLException("Invalid column index");
+        }
+
+        Object value = this.currentRow.values().toArray()[columnIndex - 1];
+        this.lastWasNull = value == null;
+        return value;
     }
 
     @Override
@@ -50,6 +66,10 @@ public class MapepireResultSet implements ResultSet {
     @Override
     @SuppressWarnings("unchecked")
     public boolean next() throws SQLException {
+        if (this.closed) {
+            throw new SQLException("ResultSet is closed");
+        }
+
         if (rowIterator.hasNext()) {
             this.currentRow = (Map<String, Object>) this.rowIterator.next();
             return true;
@@ -60,6 +80,7 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public void close() throws SQLException {
+        closed = true;
         result = null;
         rowIterator = null;
         currentRow = null;
@@ -67,107 +88,64 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public boolean wasNull() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'wasNull'");
+        if (this.closed) {
+            throw new SQLException("ResultSet is closed");
+        }
+
+        return this.lastWasNull;
     }
 
     @Override
     public String getString(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
+        Object value = getValue(columnIndex);
         return value == null ? null : value.toString();
     }
 
     @Override
     public boolean getBoolean(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
+        Object value = getValue(columnIndex);
         return value != null && (Boolean) value;
     }
 
     @Override
     public byte getByte(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
+        Object value = getValue(columnIndex);
         return value == null ? 0 : ((Number) value).byteValue();
     }
 
     @Override
     public short getShort(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
+        Object value = getValue(columnIndex);
         return value == null ? 0 : ((Number) value).shortValue();
     }
 
     @Override
     public int getInt(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
+        Object value = getValue(columnIndex);
         return value == null ? 0 : ((Number) value).intValue();
     }
 
     @Override
     public long getLong(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
+        Object value = getValue(columnIndex);
         return value == null ? 0L : ((Number) value).longValue();
     }
 
     @Override
     public float getFloat(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
+        Object value = getValue(columnIndex);
         return value == null ? 0.0f : ((Number) value).floatValue();
     }
 
     @Override
     public double getDouble(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
+        Object value = getValue(columnIndex);
         return value == null ? 0.0d : ((Number) value).doubleValue();
     }
 
     @Override
     public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
+        Object value = getValue(columnIndex);
         return value == null ? null : new BigDecimal(value.toString());
     }
 
@@ -323,14 +301,12 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public Object getObject(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getObject'");
+        return getValue(columnIndex);
     }
 
     @Override
     public Object getObject(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getObject'");
+        return getObject(findColumn(columnLabel));
     }
 
     @Override
@@ -362,14 +338,13 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public BigDecimal getBigDecimal(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBigDecimal'");
+        Object value = getValue(columnIndex);
+        return value == null ? null : new BigDecimal(value.toString());
     }
 
     @Override
     public BigDecimal getBigDecimal(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBigDecimal'");
+        return getBigDecimal(findColumn(columnLabel));
     }
 
     @Override
@@ -962,8 +937,7 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public boolean isClosed() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isClosed'");
+        return this.closed;
     }
 
     @Override

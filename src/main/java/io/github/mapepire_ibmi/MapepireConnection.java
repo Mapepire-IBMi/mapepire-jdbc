@@ -24,6 +24,7 @@ import io.github.mapepire_ibmi.types.QueryResult;
 
 public class MapepireConnection implements Connection {
     private final SqlJob job;
+    private boolean autoCommit = true;
 
     public MapepireConnection(SqlJob job) {
         this.job = job;
@@ -54,8 +55,7 @@ public class MapepireConnection implements Connection {
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'prepareStatement'");
+        return new MapepirePreparedStatement(this, sql);
     }
 
     @Override
@@ -72,14 +72,25 @@ public class MapepireConnection implements Connection {
 
     @Override
     public void setAutoCommit(boolean autoCommit) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setAutoCommit'");
+        if (isClosed()) {
+            throw new SQLException("Connection is closed");
+        }
+
+        if (this.autoCommit == autoCommit) {
+            return;
+        }
+
+        // Per the JDBC spec, enabling auto-commit mid-transaction commits the
+        // pending transaction.
+        if (autoCommit) {
+            commit();
+        }
+        this.autoCommit = autoCommit;
     }
 
     @Override
     public boolean getAutoCommit() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getAutoCommit'");
+        return this.autoCommit;
     }
 
     @Override
@@ -324,8 +335,11 @@ public class MapepireConnection implements Connection {
 
     @Override
     public boolean isValid(int timeout) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isValid'");
+        if (timeout < 0) {
+            throw new SQLException("Timeout must not be negative");
+        }
+
+        return this.job.getStatus() != JobStatus.Ended;
     }
 
     @Override

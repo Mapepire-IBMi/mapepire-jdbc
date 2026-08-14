@@ -283,6 +283,127 @@ class MapepireResultSetTest {
     }
 
     @Test
+    void isClosedReturnsFalseBeforeClose() throws SQLException {
+        assertFalse(rs.isClosed());
+    }
+
+    @Test
+    void isClosedReturnsTrueAfterClose() throws SQLException {
+        rs.close();
+        assertTrue(rs.isClosed());
+    }
+
+    @Test
+    void nextThrowsAfterClose() throws SQLException {
+        rs.close();
+        assertThrows(SQLException.class, () -> rs.next());
+    }
+
+    @Test
+    void wasNullThrowsAfterClose() throws SQLException {
+        rs.close();
+        assertThrows(SQLException.class, () -> rs.wasNull());
+    }
+
+    // -------------------------------------------------------------------------
+    // wasNull
+    // -------------------------------------------------------------------------
+
+    @Test
+    void wasNullIsFalseBeforeAnyGetter() throws SQLException {
+        rs.next();
+        assertFalse(rs.wasNull());
+    }
+
+    @Test
+    void wasNullIsTrueAfterReadingNullColumn() throws SQLException {
+        rs.next();
+        assertEquals(0, rs.getInt(5)); // SCORE is null
+        assertTrue(rs.wasNull());
+    }
+
+    @Test
+    void wasNullIsFalseAfterReadingNonNullColumn() throws SQLException {
+        rs.next();
+        assertEquals(30, rs.getInt(2));
+        assertFalse(rs.wasNull());
+    }
+
+    @Test
+    void wasNullTracksMostRecentGetter() throws SQLException {
+        rs.next();
+        rs.getInt(5); // null column
+        assertTrue(rs.wasNull());
+        rs.getString(1); // non-null column
+        assertFalse(rs.wasNull());
+    }
+
+    @Test
+    void wasNullDistinguishesZeroFromNull() throws SQLException {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("REALZERO", 0);
+        row.put("NULLCOL", null);
+        MapepireResultSet zeroRs = buildResultSet(row);
+        zeroRs.next();
+
+        assertEquals(0, zeroRs.getInt(1));
+        assertFalse(zeroRs.wasNull()); // a real 0
+        assertEquals(0, zeroRs.getInt(2));
+        assertTrue(zeroRs.wasNull()); // a NULL surfaced as 0
+    }
+
+    // -------------------------------------------------------------------------
+    // getObject
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getObjectByIndexReturnsRawValue() throws SQLException {
+        rs.next();
+        assertEquals("Alice", rs.getObject(1));
+        assertEquals(30, rs.getObject(2));
+        assertEquals(99.50d, rs.getObject(3));
+        assertEquals(true, rs.getObject(4));
+    }
+
+    @Test
+    void getObjectByNameReturnsRawValue() throws SQLException {
+        rs.next();
+        assertEquals("Alice", rs.getObject("NAME"));
+        assertEquals(30, rs.getObject("age"));
+    }
+
+    @Test
+    void getObjectReturnsNullForNullColumn() throws SQLException {
+        rs.next();
+        assertNull(rs.getObject(5));
+        assertTrue(rs.wasNull());
+    }
+
+    @Test
+    void getObjectThrowsForInvalidIndex() throws SQLException {
+        rs.next();
+        assertThrows(SQLException.class, () -> rs.getObject(0));
+        assertThrows(SQLException.class, () -> rs.getObject(99));
+    }
+
+    // -------------------------------------------------------------------------
+    // getBigDecimal (no-scale variant)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getBigDecimalByIndexReturnsCorrectValue() throws SQLException {
+        rs.next();
+        assertEquals(0, new java.math.BigDecimal("99.5").compareTo(rs.getBigDecimal(3)));
+    }
+
+    @Test
+    void getBigDecimalByNameReturnsNullForNullColumn() throws SQLException {
+        rs.next();
+        assertNull(rs.getBigDecimal("SCORE"));
+        assertTrue(rs.wasNull());
+    }
+
+    @Test
     void multipleRowsNavigatedCorrectly() throws SQLException {
         Map<String, Object> row1 = new LinkedHashMap<>();
         row1.put("ID", 1);

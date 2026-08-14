@@ -19,11 +19,13 @@ public class MapepireDriver implements Driver {
 
     private static final int MAJOR_VERSION = 1;
     private static final int MINOR_VERSION = 0;
+    private static final int DEFAULT_PORT = 8076;
     private static final String URL_REGEX = "^(?i)jdbc:mapepire://(.+?)(:(\\d+))?(;.+?=.+?)*$";
     private static final String HOST = "HOST";
     private static final String USER = "USER";
     private static final String PASSWORD = "PASSWORD";
     private static final String PORT = "PORT";
+    private static final String REJECT_UNAUTHORIZED = "REJECTUNAUTHORIZED";
 
     @Override
     public int getMajorVersion() {
@@ -55,7 +57,9 @@ public class MapepireDriver implements Driver {
             Matcher matcher = pattern.matcher(url);
             if (matcher.find()) {
                 p.put(HOST, matcher.group(1));
-                p.put(PORT, matcher.group(3));
+                if (matcher.group(3) != null) {
+                    p.put(PORT, matcher.group(3));
+                }
             } else {
                 throw new SQLException("Invalid URL");
             }
@@ -85,10 +89,9 @@ public class MapepireDriver implements Driver {
                 server.setPassword(prop.toString());
             }
             prop = p.remove(PORT);
-            if (prop != null) {
-                server.setPort(Integer.parseInt((String) prop));
-            }
-            server.setRejectUnauthorized(false);
+            server.setPort(prop != null ? Integer.parseInt(prop.toString()) : DEFAULT_PORT);
+            prop = p.remove(REJECT_UNAUTHORIZED);
+            server.setRejectUnauthorized(prop == null || Boolean.parseBoolean(prop.toString()));
 
             JDBCOptions options = new JDBCOptions(p);
             SqlJob job = new SqlJob(options);
