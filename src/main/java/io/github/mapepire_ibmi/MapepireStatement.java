@@ -57,6 +57,9 @@ public class MapepireStatement implements Statement {
 
     @Override
     public void close() throws SQLException {
+        if (this.query == null) {
+            return;
+        }
         try {
             this.query.close().get();
         } catch (Exception e) {

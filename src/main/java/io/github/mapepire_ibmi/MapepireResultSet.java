@@ -3,6 +3,7 @@ package io.github.mapepire_ibmi;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URL;
 import java.sql.Array;
 import java.sql.Blob;
@@ -29,6 +30,7 @@ public class MapepireResultSet implements ResultSet {
     private QueryResult<Object> result;
     private Iterator<Object> rowIterator;
     private Map<String, Object> currentRow;
+    private Object[] currentRowValues;
 
     public MapepireResultSet(QueryResult<Object> result) {
         this.result = result;
@@ -52,6 +54,7 @@ public class MapepireResultSet implements ResultSet {
     public boolean next() throws SQLException {
         if (rowIterator.hasNext()) {
             this.currentRow = (Map<String, Object>) this.rowIterator.next();
+            this.currentRowValues = this.currentRow.values().toArray();
             return true;
         }
 
@@ -63,6 +66,36 @@ public class MapepireResultSet implements ResultSet {
         result = null;
         rowIterator = null;
         currentRow = null;
+        currentRowValues = null;
+    }
+
+    private Object getValue(int columnIndex) throws SQLException {
+        if (this.currentRow == null) {
+            throw new SQLException("No current row for ResultSet");
+        } else if (columnIndex < 1 || columnIndex > this.currentRowValues.length) {
+            throw new SQLException("Invalid column index");
+        }
+
+        return this.currentRowValues[columnIndex - 1];
+    }
+
+    private Number getNumber(int columnIndex) throws SQLException {
+        Object value = getValue(columnIndex);
+        if (value == null) {
+            return null;
+        } else if (value instanceof Number) {
+            return (Number) value;
+        } else if (value instanceof String) {
+            try {
+                return new BigDecimal(((String) value).trim());
+            } catch (NumberFormatException e) {
+                throw new SQLException("Cannot convert value of column " + columnIndex + " to a number: " + value, e);
+            }
+        }
+
+        throw new SQLException(
+                "Cannot convert value of type " + value.getClass().getName() + " in column " + columnIndex
+                        + " to a number");
     }
 
     @Override
@@ -73,102 +106,79 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public String getString(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
+        Object value = getValue(columnIndex);
         return value == null ? null : value.toString();
     }
 
     @Override
     public boolean getBoolean(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
+        Object value = getValue(columnIndex);
+        if (value == null) {
+            return false;
+        } else if (value instanceof Boolean) {
+            return (Boolean) value;
+        } else if (value instanceof Number) {
+            return ((Number) value).intValue() != 0;
+        } else if (value instanceof String) {
+            String text = ((String) value).trim();
+            if (text.isEmpty() || text.equalsIgnoreCase("false") || text.equals("0") || text.equalsIgnoreCase("N")) {
+                return false;
+            } else if (text.equalsIgnoreCase("true") || text.equals("1") || text.equalsIgnoreCase("Y")) {
+                return true;
+            }
+            throw new SQLException("Cannot convert value of column " + columnIndex + " to boolean: " + value);
         }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
-        return value != null && (Boolean) value;
+
+        throw new SQLException(
+                "Cannot convert value of type " + value.getClass().getName() + " in column " + columnIndex
+                        + " to boolean");
     }
 
     @Override
     public byte getByte(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
-        return value == null ? 0 : ((Number) value).byteValue();
+        Number value = getNumber(columnIndex);
+        return value == null ? 0 : value.byteValue();
     }
 
     @Override
     public short getShort(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
-        return value == null ? 0 : ((Number) value).shortValue();
+        Number value = getNumber(columnIndex);
+        return value == null ? 0 : value.shortValue();
     }
 
     @Override
     public int getInt(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
-        return value == null ? 0 : ((Number) value).intValue();
+        Number value = getNumber(columnIndex);
+        return value == null ? 0 : value.intValue();
     }
 
     @Override
     public long getLong(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
-        return value == null ? 0L : ((Number) value).longValue();
+        Number value = getNumber(columnIndex);
+        return value == null ? 0L : value.longValue();
     }
 
     @Override
     public float getFloat(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
-        return value == null ? 0.0f : ((Number) value).floatValue();
+        Number value = getNumber(columnIndex);
+        return value == null ? 0.0f : value.floatValue();
     }
 
     @Override
     public double getDouble(int columnIndex) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
-        return value == null ? 0.0d : ((Number) value).doubleValue();
+        Number value = getNumber(columnIndex);
+        return value == null ? 0.0d : value.doubleValue();
     }
 
     @Override
     public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
-        if (this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
+        Number value = getNumber(columnIndex);
+        if (value == null) {
+            return null;
         }
-        Object value = this.currentRow.values().toArray()[columnIndex - 1];
-        return value == null ? null : new BigDecimal(value.toString());
+
+        BigDecimal decimal = value instanceof BigDecimal ? (BigDecimal) value : new BigDecimal(value.toString());
+        return decimal.setScale(scale, RoundingMode.HALF_UP);
     }
 
     @Override
@@ -180,19 +190,40 @@ public class MapepireResultSet implements ResultSet {
     @Override
     public Date getDate(int columnIndex) throws SQLException {
         String value = getString(columnIndex);
-        return value == null ? null : Date.valueOf(value);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Date.valueOf(value.trim());
+        } catch (IllegalArgumentException e) {
+            throw new SQLException("Invalid date value for column " + columnIndex + ": " + value, e);
+        }
     }
 
     @Override
     public Time getTime(int columnIndex) throws SQLException {
         String value = getString(columnIndex);
-        return value == null ? null : Time.valueOf(value);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Time.valueOf(value.trim());
+        } catch (IllegalArgumentException e) {
+            throw new SQLException("Invalid time value for column " + columnIndex + ": " + value, e);
+        }
     }
 
     @Override
     public Timestamp getTimestamp(int columnIndex) throws SQLException {
         String value = getString(columnIndex);
-        return value == null ? null : Timestamp.valueOf(value);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Timestamp.valueOf(value.trim());
+        } catch (IllegalArgumentException e) {
+            throw new SQLException("Invalid timestamp value for column " + columnIndex + ": " + value, e);
+        }
     }
 
     @Override
