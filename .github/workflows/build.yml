@@ -19,6 +19,9 @@ jobs:
 
     environment: OSSBUILD
 
+    env:
+      IBMI_HOST: ${{ secrets.IBMI_HOST }}
+
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
@@ -31,7 +34,7 @@ jobs:
         cache: maven
 
     - name: Set Test Secrets
-      if: contains(secrets.IBMI_HOST, '.')
+      if: contains(env.IBMI_HOST, '.')
       run: |
         cp ${{ env.CONFIG_PROPERTIES_SAMPLE }} ${{ env.CONFIG_PROPERTIES }}
         sed -i "s/^IBMI_HOST=/IBMI_HOST=$IBMI_HOST/" ${{ env.CONFIG_PROPERTIES }}
