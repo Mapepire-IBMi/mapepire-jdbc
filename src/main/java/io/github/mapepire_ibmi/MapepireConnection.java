@@ -15,7 +15,6 @@ import java.sql.SQLXML;
 import java.sql.Savepoint;
 import java.sql.Statement;
 import java.sql.Struct;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
@@ -377,7 +376,8 @@ public class MapepireConnection implements Connection {
     @Override
     public String getSchema() throws SQLException {
         try {
-            QueryResult<LinkedHashMap<String, String>> result = this.job.<LinkedHashMap<String, String>>execute("SELECT CURRENT SCHEMA FROM SYSIBM.SYSDUMMY1").get();
+            QueryResult<Map<String, String>> result = this.job
+                    .<Map<String, String>>execute("SELECT CURRENT SCHEMA FROM SYSIBM.SYSDUMMY1").get();
             if (result.getSuccess()) {
                 return result.getData().get(0).entrySet().iterator().next().getValue();
             } else {

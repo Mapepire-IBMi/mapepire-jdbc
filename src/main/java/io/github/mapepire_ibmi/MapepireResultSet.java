@@ -3,6 +3,7 @@ package io.github.mapepire_ibmi;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URL;
 import java.sql.Array;
 import java.sql.Blob;
@@ -21,7 +22,6 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import io.github.mapepire_ibmi.types.QueryResult;
@@ -29,7 +29,8 @@ import io.github.mapepire_ibmi.types.QueryResult;
 public class MapepireResultSet implements ResultSet {
     private QueryResult<Object> result;
     private Iterator<Object> rowIterator;
-    private LinkedHashMap<String, Object> currentRow;
+    private Map<String, Object> currentRow;
+    private Object[] currentRowValues;
 
     public MapepireResultSet(QueryResult<Object> result) {
         this.result = result;
@@ -52,7 +53,8 @@ public class MapepireResultSet implements ResultSet {
     @SuppressWarnings("unchecked")
     public boolean next() throws SQLException {
         if (rowIterator.hasNext()) {
-            this.currentRow = (LinkedHashMap<String, Object>) this.rowIterator.next();
+            this.currentRow = (Map<String, Object>) this.rowIterator.next();
+            this.currentRowValues = this.currentRow.values().toArray();
             return true;
         }
 
@@ -64,6 +66,36 @@ public class MapepireResultSet implements ResultSet {
         result = null;
         rowIterator = null;
         currentRow = null;
+        currentRowValues = null;
+    }
+
+    private Object getValue(int columnIndex) throws SQLException {
+        if (this.currentRow == null) {
+            throw new SQLException("No current row for ResultSet");
+        } else if (columnIndex < 1 || columnIndex > this.currentRowValues.length) {
+            throw new SQLException("Invalid column index");
+        }
+
+        return this.currentRowValues[columnIndex - 1];
+    }
+
+    private Number getNumber(int columnIndex) throws SQLException {
+        Object value = getValue(columnIndex);
+        if (value == null) {
+            return null;
+        } else if (value instanceof Number) {
+            return (Number) value;
+        } else if (value instanceof String) {
+            try {
+                return new BigDecimal(((String) value).trim());
+            } catch (NumberFormatException e) {
+                throw new SQLException("Cannot convert value of column " + columnIndex + " to a number: " + value, e);
+            }
+        }
+
+        throw new SQLException(
+                "Cannot convert value of type " + value.getClass().getName() + " in column " + columnIndex
+                        + " to a number");
     }
 
     @Override
@@ -74,61 +106,79 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public String getString(int columnIndex) throws SQLException {
-        if(this.currentRow == null) {
-            throw new SQLException("No current row for ResultSet");
-        } else if (columnIndex < 1 || columnIndex > this.currentRow.size()) {
-            throw new SQLException("Invalid column index");
-        }
-
-        return (String) this.currentRow.values().toArray()[columnIndex - 1];
+        Object value = getValue(columnIndex);
+        return value == null ? null : value.toString();
     }
 
     @Override
     public boolean getBoolean(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBoolean'");
+        Object value = getValue(columnIndex);
+        if (value == null) {
+            return false;
+        } else if (value instanceof Boolean) {
+            return (Boolean) value;
+        } else if (value instanceof Number) {
+            return ((Number) value).intValue() != 0;
+        } else if (value instanceof String) {
+            String text = ((String) value).trim();
+            if (text.isEmpty() || text.equalsIgnoreCase("false") || text.equals("0") || text.equalsIgnoreCase("N")) {
+                return false;
+            } else if (text.equalsIgnoreCase("true") || text.equals("1") || text.equalsIgnoreCase("Y")) {
+                return true;
+            }
+            throw new SQLException("Cannot convert value of column " + columnIndex + " to boolean: " + value);
+        }
+
+        throw new SQLException(
+                "Cannot convert value of type " + value.getClass().getName() + " in column " + columnIndex
+                        + " to boolean");
     }
 
     @Override
     public byte getByte(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getByte'");
+        Number value = getNumber(columnIndex);
+        return value == null ? 0 : value.byteValue();
     }
 
     @Override
     public short getShort(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getShort'");
+        Number value = getNumber(columnIndex);
+        return value == null ? 0 : value.shortValue();
     }
 
     @Override
     public int getInt(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getInt'");
+        Number value = getNumber(columnIndex);
+        return value == null ? 0 : value.intValue();
     }
 
     @Override
     public long getLong(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getLong'");
+        Number value = getNumber(columnIndex);
+        return value == null ? 0L : value.longValue();
     }
 
     @Override
     public float getFloat(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getFloat'");
+        Number value = getNumber(columnIndex);
+        return value == null ? 0.0f : value.floatValue();
     }
 
     @Override
     public double getDouble(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getDouble'");
+        Number value = getNumber(columnIndex);
+        return value == null ? 0.0d : value.doubleValue();
     }
 
     @Override
     public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBigDecimal'");
+        Number value = getNumber(columnIndex);
+        if (value == null) {
+            return null;
+        }
+
+        BigDecimal decimal = value instanceof BigDecimal ? (BigDecimal) value : new BigDecimal(value.toString());
+        return decimal.setScale(scale, RoundingMode.HALF_UP);
     }
 
     @Override
@@ -139,20 +189,41 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public Date getDate(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getDate'");
+        String value = getString(columnIndex);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Date.valueOf(value.trim());
+        } catch (IllegalArgumentException e) {
+            throw new SQLException("Invalid date value for column " + columnIndex + ": " + value, e);
+        }
     }
 
     @Override
     public Time getTime(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getTime'");
+        String value = getString(columnIndex);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Time.valueOf(value.trim());
+        } catch (IllegalArgumentException e) {
+            throw new SQLException("Invalid time value for column " + columnIndex + ": " + value, e);
+        }
     }
 
     @Override
     public Timestamp getTimestamp(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getTimestamp'");
+        String value = getString(columnIndex);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Timestamp.valueOf(value.trim());
+        } catch (IllegalArgumentException e) {
+            throw new SQLException("Invalid timestamp value for column " + columnIndex + ": " + value, e);
+        }
     }
 
     @Override
@@ -175,56 +246,47 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public String getString(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getString'");
+        return getString(findColumn(columnLabel));
     }
 
     @Override
     public boolean getBoolean(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBoolean'");
+        return getBoolean(findColumn(columnLabel));
     }
 
     @Override
     public byte getByte(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getByte'");
+        return getByte(findColumn(columnLabel));
     }
 
     @Override
     public short getShort(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getShort'");
+        return getShort(findColumn(columnLabel));
     }
 
     @Override
     public int getInt(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getInt'");
+        return getInt(findColumn(columnLabel));
     }
 
     @Override
     public long getLong(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getLong'");
+        return getLong(findColumn(columnLabel));
     }
 
     @Override
     public float getFloat(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getFloat'");
+        return getFloat(findColumn(columnLabel));
     }
 
     @Override
     public double getDouble(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getDouble'");
+        return getDouble(findColumn(columnLabel));
     }
 
     @Override
     public BigDecimal getBigDecimal(String columnLabel, int scale) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBigDecimal'");
+        return getBigDecimal(findColumn(columnLabel), scale);
     }
 
     @Override
@@ -235,20 +297,17 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public Date getDate(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getDate'");
+        return getDate(findColumn(columnLabel));
     }
 
     @Override
     public Time getTime(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getTime'");
+        return getTime(findColumn(columnLabel));
     }
 
     @Override
     public Timestamp getTimestamp(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getTimestamp'");
+        return getTimestamp(findColumn(columnLabel));
     }
 
     @Override
@@ -307,8 +366,17 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public int findColumn(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'findColumn'");
+        if (this.currentRow == null) {
+            throw new SQLException("No current row for ResultSet");
+        }
+        int index = 1;
+        for (String key : this.currentRow.keySet()) {
+            if (key.equalsIgnoreCase(columnLabel)) {
+                return index;
+            }
+            index++;
+        }
+        throw new SQLException("Column not found: " + columnLabel);
     }
 
     @Override

@@ -35,8 +35,8 @@ public class MapepireStatement implements Statement {
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
         try {
-            Query query = this.connection.getJob().query(sql);
-            QueryResult<Object> result = query.execute().get();
+            this.query = this.connection.getJob().query(sql);
+            QueryResult<Object> result = this.query.execute().get();
 
             return new MapepireResultSet(result);
         } catch (Exception e) {
@@ -47,8 +47,8 @@ public class MapepireStatement implements Statement {
     @Override
     public int executeUpdate(String sql) throws SQLException {
         try {
-            Query query = this.connection.getJob().query(sql);
-            QueryResult<Object> result = query.execute().get();
+            this.query = this.connection.getJob().query(sql);
+            QueryResult<Object> result = this.query.execute().get();
             return result.getUpdateCount();
         } catch (Exception e) {
             throw new SQLException(e);
@@ -57,6 +57,9 @@ public class MapepireStatement implements Statement {
 
     @Override
     public void close() throws SQLException {
+        if (this.query == null) {
+            return;
+        }
         try {
             this.query.close().get();
         } catch (Exception e) {
@@ -133,8 +136,8 @@ public class MapepireStatement implements Statement {
     @Override
     public boolean execute(String sql) throws SQLException {
         try {
-            Query query = this.connection.getJob().query(sql);
-            this.result = query.execute().get();
+            this.query = this.connection.getJob().query(sql);
+            this.result = this.query.execute().get();
 
             return result.getHasResults();
         } catch (Exception e) {
