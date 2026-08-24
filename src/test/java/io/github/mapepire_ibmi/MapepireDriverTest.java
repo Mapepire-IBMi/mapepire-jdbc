@@ -102,4 +102,10 @@ class MapepireDriverTest {
     void minorVersionIsZero() {
         assertEquals(0, driver.getMinorVersion());
     }
+
+    @Test
+    void driverJdbcCompliantReturnsFalse() {
+        // Not fully compliant yet — must stay false until all JDBC API is implemented
+        assertFalse(driver.jdbcCompliant());
+    }
 }
