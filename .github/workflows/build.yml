@@ -54,7 +54,7 @@ jobs:
         if [[ "$IBMI_HOST" == *.* ]]; then
           mvn --batch-mode clean package --file pom.xml
         else
-          mvn --batch-mode clean package --file pom.xml -DskipTests
+          mvn --batch-mode clean package --file pom.xml -Dtest='!ConnectionTest' -DfailIfNoTests=false
         fi
 
     - name: Update Dependency Graph
