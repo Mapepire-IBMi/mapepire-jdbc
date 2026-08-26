@@ -28,4 +28,12 @@ class ConnectionTest extends MapepireTest {
             assertNotNull(rs.getString(1));
         }
     }
+
+    @Test
+    void connectsToServerSuccessfully() throws Exception {
+        try (Connection connection = openConnection()) {
+            assertNotNull(connection);
+            assertTrue(connection.isValid(5));
+        }
+    }
 }
