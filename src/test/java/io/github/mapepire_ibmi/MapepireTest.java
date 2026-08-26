@@ -16,6 +16,7 @@ class MapepireTest {
     private static String user;
     private static String password;
     private static int port;
+    private static boolean rejectUnauthorized;
     private static final String CONFIG_FILE = "config.properties";
 
     @BeforeAll
@@ -30,16 +31,19 @@ class MapepireTest {
         user = properties.getProperty("IBMI_USER", "").trim();
         password = properties.getProperty("IBMI_PASSWORD", "").trim();
         String portStr = properties.getProperty("IBMI_PORT", "8076").trim();
+        String rejectUnauthorizedStr = properties.getProperty("REJECTUNAUTHORIZED", "true").trim();
 
         assumeTrue(!host.isEmpty(), "IBMI_HOST not set in " + CONFIG_FILE + " — skipping integration tests");
         assumeTrue(!user.isEmpty(), "IBMI_USER not set in " + CONFIG_FILE + " — skipping integration tests");
         assumeTrue(!password.isEmpty(), "IBMI_PASSWORD not set in " + CONFIG_FILE + " — skipping integration tests");
 
         port = Integer.parseInt(portStr);
+        rejectUnauthorized = Boolean.parseBoolean(rejectUnauthorizedStr);
     }
 
     static String getJdbcUrl() {
-        return "jdbc:mapepire://" + host + ":" + port + ";USER=" + user + ";PASSWORD=" + password;
+        return "jdbc:mapepire://" + host + ":" + port + ";USER=" + user + ";PASSWORD=" + password
+                + ";REJECTUNAUTHORIZED=" + rejectUnauthorized;
     }
 
     static Connection openConnection() throws Exception {
@@ -47,7 +51,7 @@ class MapepireTest {
         Properties p = new Properties();
         p.put("USER", user);
         p.put("PASSWORD", password);
-        // Check for REJECTUNAUTHORIZED override in config.properties
+        p.put("REJECTUNAUTHORIZED", String.valueOf(rejectUnauthorized));
         return DriverManager.getConnection("jdbc:mapepire://" + host + ":" + port, p);
     }
 

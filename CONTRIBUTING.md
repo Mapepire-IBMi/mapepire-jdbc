@@ -14,6 +14,7 @@ Thank you for considering contributing to the Mapepire JDBC Driver! We appreciat
   - [Getting Started](#getting-started)
   - [Creating a Branch](#creating-a-branch)
   - [Making Changes](#making-changes)
+  - [Running Tests](#running-tests)
   - [Committing Changes](#committing-changes)
   - [Submitting a Pull Request](#submitting-a-pull-request)
 - [Style Guide](#style-guide)
@@ -82,6 +83,19 @@ Create a new branch for your changes. Use a descriptive name for the branch to r
 
 ### Making Changes
 Make your changes to the codebase. Ensure that your changes adhere to our [style guide](#style-guide).
+
+### Running Tests
+
+```sh
+mvn test
+```
+
+This runs the unit tests, plus `ConnectionTest`, which connects to a real IBM i and requires credentials:
+
+1. Copy [`src/test/resources/config.properties.sample`](src/test/resources/config.properties.sample) to `src/test/resources/config.properties`.
+2. Fill in `IBMI_HOST`, `IBMI_USER`, and `IBMI_PASSWORD` (`IBMI_PORT` defaults to `8076` if left blank).
+
+`config.properties` is gitignored, so your credentials won't be committed. If it's missing or incomplete, `ConnectionTest` is skipped automatically rather than failing.
 
 ### Committing Changes
 Commit your changes with a descriptive commit message. Follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification for your commit messages.
