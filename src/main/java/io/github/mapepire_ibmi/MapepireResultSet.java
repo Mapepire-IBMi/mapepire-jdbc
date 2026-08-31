@@ -404,7 +404,14 @@ public class MapepireResultSet implements ResultSet {
     @Override
     public BigDecimal getBigDecimal(int columnIndex) throws SQLException {
         Object value = getValue(columnIndex);
-        return value == null ? null : new BigDecimal(value.toString());
+        if (value == null) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.toString().trim());
+        } catch (NumberFormatException e) {
+            throw new SQLException("Cannot convert value of column " + columnIndex + " to BigDecimal: " + value, e);
+        }
     }
 
     @Override

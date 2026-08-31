@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed resource leaks, fetch size consistency, `isValid` ping, `BigDecimal` error handling, and `REJECTUNAUTHORIZED` validation
 - JDBC URLs without an explicit port now default to 8076 instead of crashing
   with `NumberFormatException` (#12)
 - `Statement.getResultSet()`, `getUpdateCount()`, and `getMoreResults()` now

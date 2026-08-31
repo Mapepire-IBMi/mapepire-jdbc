@@ -63,7 +63,7 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
 
         try {
             Query query = getMapepireConnection().getJob().query(this.sql, options);
-            setExecutionState(query, query.execute().get());
+            setExecutionState(query, query.execute(getFetchSize()).get());
         } catch (Exception e) {
             throw new SQLException(e);
         }

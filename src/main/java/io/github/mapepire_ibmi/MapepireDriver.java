@@ -91,7 +91,19 @@ public class MapepireDriver implements Driver {
             prop = p.remove(PORT);
             server.setPort(prop != null ? Integer.parseInt(prop.toString()) : DEFAULT_PORT);
             prop = p.remove(REJECT_UNAUTHORIZED);
-            server.setRejectUnauthorized(prop == null || Boolean.parseBoolean(prop.toString()));
+            if (prop == null) {
+                server.setRejectUnauthorized(true);
+            } else {
+                String rejectUnauthorizedStr = prop.toString().trim();
+                if (rejectUnauthorizedStr.equalsIgnoreCase("true")) {
+                    server.setRejectUnauthorized(true);
+                } else if (rejectUnauthorizedStr.equalsIgnoreCase("false")) {
+                    server.setRejectUnauthorized(false);
+                } else {
+                    throw new SQLException("Invalid value for REJECTUNAUTHORIZED: '"
+                            + rejectUnauthorizedStr + "' (expected true or false)");
+                }
+            }
 
             JDBCOptions options = new JDBCOptions(p);
             SqlJob job = new SqlJob(options);

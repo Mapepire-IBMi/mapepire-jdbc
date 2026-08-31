@@ -18,6 +18,8 @@ import java.sql.Struct;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import io.github.mapepire_ibmi.types.JobStatus;
 import io.github.mapepire_ibmi.types.QueryResult;
@@ -339,7 +341,22 @@ public class MapepireConnection implements Connection {
             throw new SQLException("Timeout must not be negative");
         }
 
-        return this.job.getStatus() != JobStatus.Ended;
+        if (this.job.getStatus() == JobStatus.Ended) {
+            return false;
+        }
+
+        try {
+            if (timeout == 0) {
+                this.job.execute("VALUES 1").get();
+            } else {
+                this.job.execute("VALUES 1").get(timeout, TimeUnit.SECONDS);
+            }
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override

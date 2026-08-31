@@ -30,7 +30,10 @@ class MapepireTest {
         host = properties.getProperty("IBMI_HOST", "").trim();
         user = properties.getProperty("IBMI_USER", "").trim();
         password = properties.getProperty("IBMI_PASSWORD", "").trim();
-        String portStr = properties.getProperty("IBMI_PORT", "8076").trim();
+        String portStr = properties.getProperty("IBMI_PORT", "").trim();
+        if (portStr.isEmpty()) {
+            portStr = "8076";
+        }
         String rejectUnauthorizedStr = properties.getProperty("REJECTUNAUTHORIZED", "true").trim();
 
         assumeTrue(!host.isEmpty(), "IBMI_HOST not set in " + CONFIG_FILE + " — skipping integration tests");

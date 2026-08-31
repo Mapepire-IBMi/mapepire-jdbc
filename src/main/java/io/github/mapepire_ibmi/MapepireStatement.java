@@ -7,6 +7,7 @@ import java.sql.SQLWarning;
 import java.sql.Statement;
 
 import io.github.mapepire_ibmi.types.QueryResult;
+import io.github.mapepire_ibmi.types.QueryState;
 
 public class MapepireStatement implements Statement {
     protected static final int DEFAULT_FETCH_SIZE = 100;
@@ -35,7 +36,14 @@ public class MapepireStatement implements Statement {
         return this.result;
     }
 
-    protected void setExecutionState(Query query, QueryResult<Object> result) {
+    protected void setExecutionState(Query query, QueryResult<Object> result) throws SQLException {
+        if (this.query != null && this.query.getState() != QueryState.RUN_DONE) {
+            try {
+                this.query.close().get();
+            } catch (Exception e) {
+                throw new SQLException(e);
+            }
+        }
         this.query = query;
         this.result = result;
     }
@@ -58,9 +66,8 @@ public class MapepireStatement implements Statement {
     public ResultSet executeQuery(String sql) throws SQLException {
         checkClosed();
         try {
-            this.query = this.connection.getJob().query(sql);
-            this.result = this.query.execute().get();
-
+            Query newQuery = this.connection.getJob().query(sql);
+            setExecutionState(newQuery, newQuery.execute(this.fetchSize).get());
             return new MapepireResultSet(this.result);
         } catch (Exception e) {
             throw new SQLException(e);
@@ -71,8 +78,8 @@ public class MapepireStatement implements Statement {
     public int executeUpdate(String sql) throws SQLException {
         checkClosed();
         try {
-            this.query = this.connection.getJob().query(sql);
-            this.result = this.query.execute().get();
+            Query newQuery = this.connection.getJob().query(sql);
+            setExecutionState(newQuery, newQuery.execute(this.fetchSize).get());
             return this.result.getUpdateCount();
         } catch (Exception e) {
             throw new SQLException(e);
@@ -165,9 +172,8 @@ public class MapepireStatement implements Statement {
     public boolean execute(String sql) throws SQLException {
         checkClosed();
         try {
-            this.query = this.connection.getJob().query(sql);
-            this.result = this.query.execute().get();
-
+            Query newQuery = this.connection.getJob().query(sql);
+            setExecutionState(newQuery, newQuery.execute(this.fetchSize).get());
             return result.getHasResults();
         } catch (Exception e) {
             throw new SQLException(e);
