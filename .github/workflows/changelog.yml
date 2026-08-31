@@ -1,0 +1,32 @@
+name: Changelog Check
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    types: [ opened, synchronize, reopened, labeled, unlabeled ]
+
+permissions:
+  contents: read
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    # Apply the 'skip-changelog' label to PRs that don't need a changelog
+    # entry (typo fixes, CI tweaks, etc.)
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check that CHANGELOG.md was updated
+        run: |
+          if git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD" | grep -qx 'CHANGELOG.md'; then
+            echo "CHANGELOG.md was updated."
+          else
+            echo "::error::This PR does not update CHANGELOG.md." \
+                 "Add an entry under '## [Unreleased]', or apply the 'skip-changelog' label if no entry is needed."
+            exit 1
+          fi

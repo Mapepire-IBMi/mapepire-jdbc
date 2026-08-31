@@ -44,6 +44,17 @@ class MapepireDriverTest {
     }
 
     @Test
+    void acceptsUrlWithoutPort() throws SQLException {
+        // The port is optional — it defaults to 8076
+        assertTrue(driver.acceptsURL("jdbc:mapepire://myhost.example.com"));
+    }
+
+    @Test
+    void acceptsUrlWithoutPortButWithProperties() throws SQLException {
+        assertTrue(driver.acceptsURL("jdbc:mapepire://myhost.example.com;USER=bob;PASSWORD=secret"));
+    }
+
+    @Test
     void acceptsUrlWithAdditionalJdbcProperties() throws SQLException {
         assertTrue(driver.acceptsURL("jdbc:mapepire://myhost.example.com:8076;naming=system;errors=full"));
     }
@@ -97,4 +108,5 @@ class MapepireDriverTest {
         // Not fully compliant yet — must stay false until all JDBC API is implemented
         assertFalse(driver.jdbcCompliant());
     }
+
 }

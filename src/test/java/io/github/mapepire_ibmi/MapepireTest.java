@@ -1,12 +1,10 @@
 package io.github.mapepire_ibmi;
 
-import java.io.FileNotFoundException;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
 import java.io.InputStream;
-import java.text.ParseException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.util.Properties;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -18,55 +16,61 @@ class MapepireTest {
     private static String user;
     private static String password;
     private static int port;
-    private static String configFile = "config.properties";
+    private static boolean rejectUnauthorized;
+    private static final String CONFIG_FILE = "config.properties";
 
     @BeforeAll
-    public static void beforeAll() throws Exception {
-        setupCreds();
-    }
-
-    public static void setupCreds() throws Exception {
+    static void setupCreds() throws Exception {
         Properties properties = new Properties();
-        try (InputStream input = MapepireTest.class.getClassLoader().getResourceAsStream(configFile)) {
-            if (input == null) {
-                throw new FileNotFoundException("Unable to find " + configFile);
-            }
+        try (InputStream input = MapepireTest.class.getClassLoader().getResourceAsStream(CONFIG_FILE)) {
+            assumeTrue(input != null, CONFIG_FILE + " not found on classpath — skipping integration tests");
             properties.load(input);
         }
 
-        List<String> keys = Arrays.asList("IBMI_HOST", "IBMI_USER", "IBMI_PASSWORD", "IBMI_PORT");
-        Map<String, String> secrets = new HashMap<>();
-        for (String key : keys) {
-            String value = properties.getProperty(key);
-            if (value == null || value.equals("")) {
-                throw new ParseException(key + " not set in config.properties", 0);
-            }
-            secrets.put(key, value);
+        host = properties.getProperty("IBMI_HOST", "").trim();
+        user = properties.getProperty("IBMI_USER", "").trim();
+        password = properties.getProperty("IBMI_PASSWORD", "").trim();
+        String portStr = properties.getProperty("IBMI_PORT", "").trim();
+        if (portStr.isEmpty()) {
+            portStr = "8076";
         }
+        String rejectUnauthorizedStr = properties.getProperty("REJECTUNAUTHORIZED", "true").trim();
 
-        host = secrets.get("IBMI_HOST");
-        user = secrets.get("IBMI_USER");
-        password = secrets.get("IBMI_PASSWORD");
-        port = Integer.parseInt(secrets.get("IBMI_PORT"));
+        assumeTrue(!host.isEmpty(), "IBMI_HOST not set in " + CONFIG_FILE + " — skipping integration tests");
+        assumeTrue(!user.isEmpty(), "IBMI_USER not set in " + CONFIG_FILE + " — skipping integration tests");
+        assumeTrue(!password.isEmpty(), "IBMI_PASSWORD not set in " + CONFIG_FILE + " — skipping integration tests");
+
+        port = Integer.parseInt(portStr);
+        rejectUnauthorized = Boolean.parseBoolean(rejectUnauthorizedStr);
     }
 
-    public static String getJdbcUrl() {
-        return "jdbc:mapepire://" + host + ":" + port + ";USER=" + user + ";PASSWORD=" + password;
+    static String getJdbcUrl() {
+        return "jdbc:mapepire://" + host + ":" + port + ";USER=" + user + ";PASSWORD=" + password
+                + ";REJECTUNAUTHORIZED=" + rejectUnauthorized;
     }
 
-    public static String getHost() {
+    static Connection openConnection() throws Exception {
+        DriverManager.registerDriver(new MapepireDriver());
+        Properties p = new Properties();
+        p.put("USER", user);
+        p.put("PASSWORD", password);
+        p.put("REJECTUNAUTHORIZED", String.valueOf(rejectUnauthorized));
+        return DriverManager.getConnection("jdbc:mapepire://" + host + ":" + port, p);
+    }
+
+    static String getHost() {
         return host;
     }
 
-    public static String getUser() {
+    static String getUser() {
         return user;
     }
 
-    public static String getPassword() {
+    static String getPassword() {
         return password;
     }
 
-    public static int getPort() {
+    static int getPort() {
         return port;
     }
 }

@@ -30,43 +30,13 @@ public class MapepireResultSet implements ResultSet {
     private QueryResult<Object> result;
     private Iterator<Object> rowIterator;
     private Map<String, Object> currentRow;
+    private boolean closed;
+    private boolean lastWasNull;
     private Object[] currentRowValues;
 
     public MapepireResultSet(QueryResult<Object> result) {
         this.result = result;
         this.rowIterator = this.result.getData().iterator();
-    }
-
-    @Override
-    public <T> T unwrap(Class<T> iface) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'unwrap'");
-    }
-
-    @Override
-    public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isWrapperFor'");
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public boolean next() throws SQLException {
-        if (rowIterator.hasNext()) {
-            this.currentRow = (Map<String, Object>) this.rowIterator.next();
-            this.currentRowValues = this.currentRow.values().toArray();
-            return true;
-        }
-
-        return false;
-    }
-
-    @Override
-    public void close() throws SQLException {
-        result = null;
-        rowIterator = null;
-        currentRow = null;
-        currentRowValues = null;
     }
 
     private Object getValue(int columnIndex) throws SQLException {
@@ -76,7 +46,9 @@ public class MapepireResultSet implements ResultSet {
             throw new SQLException("Invalid column index");
         }
 
-        return this.currentRowValues[columnIndex - 1];
+        Object value = this.currentRowValues[columnIndex - 1];
+        this.lastWasNull = value == null;
+        return value;
     }
 
     private Number getNumber(int columnIndex) throws SQLException {
@@ -99,9 +71,49 @@ public class MapepireResultSet implements ResultSet {
     }
 
     @Override
-    public boolean wasNull() throws SQLException {
+    public <T> T unwrap(Class<T> iface) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'wasNull'");
+        throw new UnsupportedOperationException("Unimplemented method 'unwrap'");
+    }
+
+    @Override
+    public boolean isWrapperFor(Class<?> iface) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'isWrapperFor'");
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public boolean next() throws SQLException {
+        if (this.closed) {
+            throw new SQLException("ResultSet is closed");
+        }
+
+        if (rowIterator.hasNext()) {
+            this.currentRow = (Map<String, Object>) this.rowIterator.next();
+            this.currentRowValues = this.currentRow.values().toArray();
+            return true;
+        }
+
+        return false;
+    }
+
+    @Override
+    public void close() throws SQLException {
+        closed = true;
+        result = null;
+        rowIterator = null;
+        currentRow = null;
+        currentRowValues = null;
+    }
+
+    @Override
+    public boolean wasNull() throws SQLException {
+        if (this.closed) {
+            throw new SQLException("ResultSet is closed");
+        }
+
+        return this.lastWasNull;
     }
 
     @Override
@@ -354,14 +366,12 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public Object getObject(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getObject'");
+        return getValue(columnIndex);
     }
 
     @Override
     public Object getObject(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getObject'");
+        return getObject(findColumn(columnLabel));
     }
 
     @Override
@@ -393,14 +403,20 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public BigDecimal getBigDecimal(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBigDecimal'");
+        Object value = getValue(columnIndex);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.toString().trim());
+        } catch (NumberFormatException e) {
+            throw new SQLException("Cannot convert value of column " + columnIndex + " to BigDecimal: " + value, e);
+        }
     }
 
     @Override
     public BigDecimal getBigDecimal(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBigDecimal'");
+        return getBigDecimal(findColumn(columnLabel));
     }
 
     @Override
@@ -993,8 +1009,7 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public boolean isClosed() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isClosed'");
+        return this.closed;
     }
 
     @Override
