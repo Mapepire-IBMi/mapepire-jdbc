@@ -341,8 +341,15 @@ public class MapepireConnection implements Connection {
             throw new SQLException("Timeout must not be negative");
         }
 
-        if (this.job.getStatus() == JobStatus.Ended) {
+        JobStatus status = this.job.getStatus();
+        if (status == JobStatus.Ended) {
             return false;
+        }
+
+        // Only ping the server when there is an active connection to ping.
+        // NotStarted/Connecting have no socket yet but the job has not ended.
+        if (status != JobStatus.Ready && status != JobStatus.Busy) {
+            return true;
         }
 
         try {
