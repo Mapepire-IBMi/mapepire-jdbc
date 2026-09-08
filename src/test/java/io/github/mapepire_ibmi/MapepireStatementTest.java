@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -122,5 +123,14 @@ class MapepireStatementTest {
         try (MapepireStatement s = new MapepireStatement(conn)) {
             assertEquals(conn, s.getConnection());
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // unimplemented methods throw SQLFeatureNotSupportedException (SQLException)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void unimplementedMethodsThrowSQLFeatureNotSupportedException() {
+        assertThrows(SQLFeatureNotSupportedException.class, () -> stmt.cancel());
     }
 }

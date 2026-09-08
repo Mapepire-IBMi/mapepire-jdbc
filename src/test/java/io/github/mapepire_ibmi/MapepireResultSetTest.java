@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Date;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Arrays;
@@ -421,5 +422,14 @@ class MapepireResultSetTest {
             assertEquals(2, multiRs.getInt(1));
             assertFalse(multiRs.next());
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // unimplemented methods throw SQLFeatureNotSupportedException (SQLException)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void unimplementedMethodsThrowSQLFeatureNotSupportedException() {
+        assertThrows(SQLFeatureNotSupportedException.class, () -> rs.getMetaData());
     }
 }

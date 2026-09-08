@@ -16,6 +16,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.RowId;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLXML;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -201,103 +202,103 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
     @Override
     public void addBatch() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'addBatch'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'addBatch'");
     }
 
     @Override
     public void setBytes(int parameterIndex, byte[] x) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setBytes'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBytes'");
     }
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setAsciiStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setAsciiStream'");
     }
 
     @Override
     public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setUnicodeStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setUnicodeStream'");
     }
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setBinaryStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBinaryStream'");
     }
 
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader, int length) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setCharacterStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setCharacterStream'");
     }
 
     @Override
     public void setRef(int parameterIndex, Ref x) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setRef'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setRef'");
     }
 
     @Override
     public void setBlob(int parameterIndex, Blob x) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setBlob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBlob'");
     }
 
     @Override
     public void setClob(int parameterIndex, Clob x) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setClob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setClob'");
     }
 
     @Override
     public void setArray(int parameterIndex, Array x) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setArray'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setArray'");
     }
 
     @Override
     public ResultSetMetaData getMetaData() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getMetaData'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getMetaData'");
     }
 
     @Override
     public void setDate(int parameterIndex, Date x, Calendar cal) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setDate'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setDate'");
     }
 
     @Override
     public void setTime(int parameterIndex, Time x, Calendar cal) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setTime'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setTime'");
     }
 
     @Override
     public void setTimestamp(int parameterIndex, Timestamp x, Calendar cal) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setTimestamp'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setTimestamp'");
     }
 
     @Override
     public void setURL(int parameterIndex, URL x) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setURL'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setURL'");
     }
 
     @Override
     public ParameterMetaData getParameterMetaData() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getParameterMetaData'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getParameterMetaData'");
     }
 
     @Override
     public void setRowId(int parameterIndex, RowId x) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setRowId'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setRowId'");
     }
 
     @Override
@@ -308,96 +309,96 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
     @Override
     public void setNCharacterStream(int parameterIndex, Reader value, long length) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setNCharacterStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNCharacterStream'");
     }
 
     @Override
     public void setNClob(int parameterIndex, NClob value) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setNClob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNClob'");
     }
 
     @Override
     public void setClob(int parameterIndex, Reader reader, long length) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setClob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setClob'");
     }
 
     @Override
     public void setBlob(int parameterIndex, InputStream inputStream, long length) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setBlob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBlob'");
     }
 
     @Override
     public void setNClob(int parameterIndex, Reader reader, long length) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setNClob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNClob'");
     }
 
     @Override
     public void setSQLXML(int parameterIndex, SQLXML xmlObject) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setSQLXML'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setSQLXML'");
     }
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setAsciiStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setAsciiStream'");
     }
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setBinaryStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBinaryStream'");
     }
 
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader, long length) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setCharacterStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setCharacterStream'");
     }
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setAsciiStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setAsciiStream'");
     }
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setBinaryStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBinaryStream'");
     }
 
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setCharacterStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setCharacterStream'");
     }
 
     @Override
     public void setNCharacterStream(int parameterIndex, Reader value) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setNCharacterStream'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNCharacterStream'");
     }
 
     @Override
     public void setClob(int parameterIndex, Reader reader) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setClob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setClob'");
     }
 
     @Override
     public void setBlob(int parameterIndex, InputStream inputStream) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setBlob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBlob'");
     }
 
     @Override
     public void setNClob(int parameterIndex, Reader reader) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setNClob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNClob'");
     }
 }

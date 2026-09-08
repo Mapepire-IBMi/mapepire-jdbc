@@ -9,6 +9,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.NClob;
 import java.sql.PreparedStatement;
 import java.sql.SQLClientInfoException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.SQLXML;
@@ -63,13 +64,13 @@ public class MapepireConnection implements Connection {
     @Override
     public CallableStatement prepareCall(String sql) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'prepareCall'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareCall'");
     }
 
     @Override
     public String nativeSQL(String sql) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'nativeSQL'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'nativeSQL'");
     }
 
     @Override
@@ -126,7 +127,7 @@ public class MapepireConnection implements Connection {
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getMetaData'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getMetaData'");
     }
 
     @Override
@@ -142,19 +143,19 @@ public class MapepireConnection implements Connection {
     @Override
     public boolean isReadOnly() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isReadOnly'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'isReadOnly'");
     }
 
     @Override
     public void setCatalog(String catalog) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setCatalog'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setCatalog'");
     }
 
     @Override
     public String getCatalog() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getCatalog'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getCatalog'");
     }
 
     @Override
@@ -190,149 +191,149 @@ public class MapepireConnection implements Connection {
     @Override
     public int getTransactionIsolation() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getTransactionIsolation'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getTransactionIsolation'");
     }
 
     @Override
     public SQLWarning getWarnings() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getWarnings'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getWarnings'");
     }
 
     @Override
     public void clearWarnings() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'clearWarnings'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'clearWarnings'");
     }
 
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createStatement'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'createStatement'");
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
             throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'prepareStatement'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareStatement'");
     }
 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'prepareCall'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareCall'");
     }
 
     @Override
     public Map<String, Class<?>> getTypeMap() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getTypeMap'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getTypeMap'");
     }
 
     @Override
     public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setTypeMap'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setTypeMap'");
     }
 
     @Override
     public void setHoldability(int holdability) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setHoldability'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setHoldability'");
     }
 
     @Override
     public int getHoldability() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getHoldability'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getHoldability'");
     }
 
     @Override
     public Savepoint setSavepoint() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setSavepoint'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setSavepoint'");
     }
 
     @Override
     public Savepoint setSavepoint(String name) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setSavepoint'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setSavepoint'");
     }
 
     @Override
     public void rollback(Savepoint savepoint) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'rollback'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'rollback'");
     }
 
     @Override
     public void releaseSavepoint(Savepoint savepoint) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'releaseSavepoint'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'releaseSavepoint'");
     }
 
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability)
             throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createStatement'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'createStatement'");
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency,
             int resultSetHoldability) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'prepareStatement'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareStatement'");
     }
 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency,
             int resultSetHoldability) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'prepareCall'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareCall'");
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'prepareStatement'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareStatement'");
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'prepareStatement'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareStatement'");
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'prepareStatement'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareStatement'");
     }
 
     @Override
     public Clob createClob() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createClob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'createClob'");
     }
 
     @Override
     public Blob createBlob() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createBlob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'createBlob'");
     }
 
     @Override
     public NClob createNClob() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createNClob'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'createNClob'");
     }
 
     @Override
     public SQLXML createSQLXML() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createSQLXML'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'createSQLXML'");
     }
 
     @Override
@@ -369,37 +370,37 @@ public class MapepireConnection implements Connection {
     @Override
     public void setClientInfo(String name, String value) throws SQLClientInfoException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setClientInfo'");
+        throw new SQLClientInfoException();
     }
 
     @Override
     public void setClientInfo(Properties properties) throws SQLClientInfoException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setClientInfo'");
+        throw new SQLClientInfoException();
     }
 
     @Override
     public String getClientInfo(String name) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getClientInfo'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getClientInfo'");
     }
 
     @Override
     public Properties getClientInfo() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getClientInfo'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getClientInfo'");
     }
 
     @Override
     public Array createArrayOf(String typeName, Object[] elements) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createArrayOf'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'createArrayOf'");
     }
 
     @Override
     public Struct createStruct(String typeName, Object[] attributes) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'createStruct'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'createStruct'");
     }
 
     @Override
@@ -434,12 +435,12 @@ public class MapepireConnection implements Connection {
     @Override
     public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setNetworkTimeout'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNetworkTimeout'");
     }
 
     @Override
     public int getNetworkTimeout() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getNetworkTimeout'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNetworkTimeout'");
     }
 }
