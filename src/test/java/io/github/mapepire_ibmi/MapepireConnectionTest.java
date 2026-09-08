@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,5 +69,14 @@ class MapepireConnectionTest {
     @Test
     void isClosedReturnsFalseWhileJobIsNotEnded() throws SQLException {
         assertFalse(connection.isClosed());
+    }
+
+    // -------------------------------------------------------------------------
+    // unimplemented methods throw SQLFeatureNotSupportedException (SQLException)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void prepareCallThrowsSQLFeatureNotSupportedException() {
+        assertThrows(SQLFeatureNotSupportedException.class, () -> connection.prepareCall("CALL FOO()"));
     }
 }

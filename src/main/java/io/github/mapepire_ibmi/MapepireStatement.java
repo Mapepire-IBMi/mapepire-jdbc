@@ -3,6 +3,7 @@ package io.github.mapepire_ibmi;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
 
@@ -105,67 +106,67 @@ public class MapepireStatement implements Statement {
     @Override
     public int getMaxFieldSize() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getMaxFieldSize'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getMaxFieldSize'");
     }
 
     @Override
     public void setMaxFieldSize(int max) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setMaxFieldSize'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setMaxFieldSize'");
     }
 
     @Override
     public int getMaxRows() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getMaxRows'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getMaxRows'");
     }
 
     @Override
     public void setMaxRows(int max) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setMaxRows'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setMaxRows'");
     }
 
     @Override
     public void setEscapeProcessing(boolean enable) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setEscapeProcessing'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setEscapeProcessing'");
     }
 
     @Override
     public int getQueryTimeout() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getQueryTimeout'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getQueryTimeout'");
     }
 
     @Override
     public void setQueryTimeout(int seconds) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setQueryTimeout'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setQueryTimeout'");
     }
 
     @Override
     public void cancel() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'cancel'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'cancel'");
     }
 
     @Override
     public SQLWarning getWarnings() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getWarnings'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getWarnings'");
     }
 
     @Override
     public void clearWarnings() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'clearWarnings'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'clearWarnings'");
     }
 
     @Override
     public void setCursorName(String name) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setCursorName'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setCursorName'");
     }
 
     @Override
@@ -219,13 +220,13 @@ public class MapepireStatement implements Statement {
     @Override
     public void setFetchDirection(int direction) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setFetchDirection'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setFetchDirection'");
     }
 
     @Override
     public int getFetchDirection() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getFetchDirection'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getFetchDirection'");
     }
 
     @Override
@@ -244,31 +245,31 @@ public class MapepireStatement implements Statement {
     @Override
     public int getResultSetConcurrency() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getResultSetConcurrency'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getResultSetConcurrency'");
     }
 
     @Override
     public int getResultSetType() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getResultSetType'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getResultSetType'");
     }
 
     @Override
     public void addBatch(String sql) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'addBatch'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'addBatch'");
     }
 
     @Override
     public void clearBatch() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'clearBatch'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'clearBatch'");
     }
 
     @Override
     public int[] executeBatch() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'executeBatch'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'executeBatch'");
     }
 
     @Override
@@ -279,55 +280,55 @@ public class MapepireStatement implements Statement {
     @Override
     public boolean getMoreResults(int current) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getMoreResults'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getMoreResults'");
     }
 
     @Override
     public ResultSet getGeneratedKeys() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getGeneratedKeys'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getGeneratedKeys'");
     }
 
     @Override
     public int executeUpdate(String sql, int autoGeneratedKeys) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'executeUpdate'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'executeUpdate'");
     }
 
     @Override
     public int executeUpdate(String sql, int[] columnIndexes) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'executeUpdate'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'executeUpdate'");
     }
 
     @Override
     public int executeUpdate(String sql, String[] columnNames) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'executeUpdate'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'executeUpdate'");
     }
 
     @Override
     public boolean execute(String sql, int autoGeneratedKeys) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'execute'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'execute'");
     }
 
     @Override
     public boolean execute(String sql, int[] columnIndexes) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'execute'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'execute'");
     }
 
     @Override
     public boolean execute(String sql, String[] columnNames) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'execute'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'execute'");
     }
 
     @Override
     public int getResultSetHoldability() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getResultSetHoldability'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'getResultSetHoldability'");
     }
 
     @Override
@@ -338,24 +339,24 @@ public class MapepireStatement implements Statement {
     @Override
     public void setPoolable(boolean poolable) throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setPoolable'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'setPoolable'");
     }
 
     @Override
     public boolean isPoolable() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isPoolable'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'isPoolable'");
     }
 
     @Override
     public void closeOnCompletion() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'closeOnCompletion'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'closeOnCompletion'");
     }
 
     @Override
     public boolean isCloseOnCompletion() throws SQLException {
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isCloseOnCompletion'");
+        throw new SQLFeatureNotSupportedException("Unimplemented method 'isCloseOnCompletion'");
     }
 }
