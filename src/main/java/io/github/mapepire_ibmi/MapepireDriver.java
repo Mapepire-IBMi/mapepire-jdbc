@@ -1,6 +1,5 @@
 package io.github.mapepire_ibmi;
 
-import java.io.StringReader;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverPropertyInfo;
@@ -64,16 +63,7 @@ public class MapepireDriver implements Driver {
                 throw new SQLException("Invalid URL");
             }
 
-            final String propertiesFromConnectionString = url.contains(";") ? url.replaceFirst("^[^;]*;", "") : "";
-            Properties connStringProps = new Properties();
-            connStringProps.load(new StringReader(propertiesFromConnectionString.replace(';', '\n')));
-            for (Object prop : Collections.list(connStringProps.propertyNames())) {
-                if (prop instanceof CharSequence) {
-                    p.put(prop.toString().toUpperCase(), connStringProps.get(prop));
-                } else {
-                    p.put(prop, connStringProps.get(prop));
-                }
-            }
+            parseUrlProperties(url, p);
 
             DaemonServer server = new DaemonServer();
             Object prop = p.remove(HOST);
@@ -111,6 +101,27 @@ public class MapepireDriver implements Driver {
             return new MapepireConnection(job);
         } catch (Exception e) {
             throw new SQLException(e);
+        }
+    }
+
+    /**
+     * Parses the semicolon-delimited property tail of a JDBC URL into {@code props}.
+     * Splits on {@code ;} then the first {@code =} only — no Properties-file escape
+     * processing, so values containing {@code \}, {@code #}, {@code !}, or {@code =}
+     * are preserved verbatim.
+     */
+    static void parseUrlProperties(String url, Properties props) {
+        if (!url.contains(";")) {
+            return;
+        }
+        String tail = url.replaceFirst("^[^;]*;", "");
+        for (String segment : tail.split(";", -1)) {
+            int eq = segment.indexOf('=');
+            if (eq > 0) {
+                String key = segment.substring(0, eq).toUpperCase();
+                String value = segment.substring(eq + 1);
+                props.put(key, value);
+            }
         }
     }
 

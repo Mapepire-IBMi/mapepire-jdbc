@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- URL connection-string properties no longer pass through `Properties.load()`,
+  which silently mangled values containing `\`, `#`, `!`, or `=` (e.g.
+  `PASSWORD=#secret` was dropped as a comment). A manual parser now splits on
+  `;` and the first `=` only, with no escape processing, so credentials
+  round-trip verbatim through `DriverManager.getConnection(url)`
 - Fixed resource leaks, fetch size consistency, `isValid` ping, `BigDecimal` error handling, and `REJECTUNAUTHORIZED` validation
 - JDBC URLs without an explicit port now default to 8076 instead of crashing
   with `NumberFormatException` (#12)
