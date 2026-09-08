@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before any SQL has been executed, and is now idempotent
 - Operations on a closed `ResultSet` or `Statement` now throw a clear
   `SQLException` instead of `NullPointerException`
+- Unimplemented methods across `MapepireConnection`, `MapepireStatement`,
+  `MapepirePreparedStatement`, and `MapepireResultSet` now throw
+  `SQLFeatureNotSupportedException` instead of unchecked `UnsupportedOperationException`
 
 ### Changed
 
