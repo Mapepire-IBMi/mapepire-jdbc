@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.SQLException;
+import java.util.Properties;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -107,6 +108,69 @@ class MapepireDriverTest {
     void driverJdbcCompliantReturnsFalse() {
         // Not fully compliant yet — must stay false until all JDBC API is implemented
         assertFalse(driver.jdbcCompliant());
+    }
+
+    // -------------------------------------------------------------------------
+    // parseUrlProperties — special-character round-trip tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void passwordWithBackslash() {
+        Properties p = new Properties();
+        MapepireDriver.parseUrlProperties(
+                "jdbc:mapepire://host;USER=alice;PASSWORD=pass\\word", p);
+        assertEquals("pass\\word", p.getProperty("PASSWORD"));
+    }
+
+    @Test
+    void passwordWithHash() {
+        Properties p = new Properties();
+        MapepireDriver.parseUrlProperties(
+                "jdbc:mapepire://host;USER=alice;PASSWORD=#secret", p);
+        assertEquals("#secret", p.getProperty("PASSWORD"));
+    }
+
+    @Test
+    void passwordWithExclamation() {
+        Properties p = new Properties();
+        MapepireDriver.parseUrlProperties(
+                "jdbc:mapepire://host;USER=alice;PASSWORD=!secret", p);
+        assertEquals("!secret", p.getProperty("PASSWORD"));
+    }
+
+    @Test
+    void passwordWithEmbeddedEquals() {
+        // Only the *first* '=' in a segment is the key/value delimiter; the rest
+        // belong to the value.
+        Properties p = new Properties();
+        MapepireDriver.parseUrlProperties(
+                "jdbc:mapepire://host;USER=alice;PASSWORD=a=b=c", p);
+        assertEquals("a=b=c", p.getProperty("PASSWORD"));
+    }
+
+    @Test
+    void passwordWithBackslashW() {
+        // \w must not be consumed as a Java-properties escape sequence
+        Properties p = new Properties();
+        MapepireDriver.parseUrlProperties(
+                "jdbc:mapepire://host;USER=alice;PASSWORD=\\wSecret99", p);
+        assertEquals("\\wSecret99", p.getProperty("PASSWORD"));
+    }
+
+    @Test
+    void parseUrlPropertiesKeysCaseNormalised() {
+        Properties p = new Properties();
+        MapepireDriver.parseUrlProperties(
+                "jdbc:mapepire://host;user=alice;password=pw", p);
+        assertEquals("alice", p.getProperty("USER"));
+        assertEquals("pw", p.getProperty("PASSWORD"));
+    }
+
+    @Test
+    void parseUrlPropertiesNoSemicolon() {
+        Properties p = new Properties();
+        MapepireDriver.parseUrlProperties("jdbc:mapepire://host", p);
+        assertTrue(p.isEmpty());
     }
 
 }
