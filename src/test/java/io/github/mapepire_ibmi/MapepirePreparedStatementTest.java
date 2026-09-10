@@ -1,26 +1,56 @@
 package io.github.mapepire_ibmi;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Types;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.github.mapepire_ibmi.types.QueryOptions;
+import io.github.mapepire_ibmi.types.QueryResult;
+
+@ExtendWith(MockitoExtension.class)
+@SuppressWarnings("unchecked")
 class MapepirePreparedStatementTest {
 
     private MapepireConnection connection;
     private MapepirePreparedStatement ps;
 
+    @Mock
+    private SqlJob mockJob;
+
+    @Mock
+    private Query mockQuery;
+
     @BeforeEach
     void setUp() {
         connection = new MapepireConnection(new SqlJob());
         ps = new MapepirePreparedStatement(connection, "SELECT * FROM T WHERE A = ? AND B = ?");
+    }
+
+    private MapepirePreparedStatement preparedStatementWithMockJob(String sql) {
+        return new MapepirePreparedStatement(new MapepireConnection(mockJob), sql);
     }
 
     // -------------------------------------------------------------------------
@@ -116,5 +146,59 @@ class MapepirePreparedStatementTest {
     @Test
     void unimplementedMethodsThrowSQLFeatureNotSupportedException() {
         assertThrows(SQLFeatureNotSupportedException.class, () -> ps.addBatch());
+    }
+
+    // -------------------------------------------------------------------------
+    // executeQuery / executeUpdate / execute against a mocked SqlJob and Query
+    // -------------------------------------------------------------------------
+
+    @Test
+    void executeQueryPassesBoundParametersInOrder() throws Exception {
+        MapepirePreparedStatement mockedPs = preparedStatementWithMockJob("SELECT * FROM T WHERE A = ? AND B = ?");
+        mockedPs.setString(1, "A");
+        mockedPs.setInt(2, 42);
+
+        QueryResult<Object> result = mock(QueryResult.class);
+        when(result.getData()).thenReturn(Collections.emptyList());
+        when(mockJob.query(eq("SELECT * FROM T WHERE A = ? AND B = ?"), any(QueryOptions.class)))
+                .thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(result));
+
+        try (ResultSet rs = mockedPs.executeQuery()) {
+            assertFalse(rs.next());
+        }
+
+        ArgumentCaptor<QueryOptions> optionsCaptor = ArgumentCaptor.forClass(QueryOptions.class);
+        verify(mockJob).query(eq("SELECT * FROM T WHERE A = ? AND B = ?"), optionsCaptor.capture());
+        assertEquals(Arrays.asList("A", 42), optionsCaptor.getValue().getParameters());
+    }
+
+    @Test
+    void executeUpdateReturnsUpdateCountFromMockedQuery() throws Exception {
+        MapepirePreparedStatement mockedPs = preparedStatementWithMockJob("DELETE FROM T WHERE A = ?");
+        mockedPs.setInt(1, 7);
+
+        QueryResult<Object> result = mock(QueryResult.class);
+        when(result.getUpdateCount()).thenReturn(3);
+        when(mockJob.query(eq("DELETE FROM T WHERE A = ?"), any(QueryOptions.class))).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(result));
+
+        assertEquals(3, mockedPs.executeUpdate());
+    }
+
+    @Test
+    void executePropagatesSqlStateFromFailedQuery() throws Exception {
+        MapepirePreparedStatement mockedPs = preparedStatementWithMockJob("SELECT * FROM BOGUS WHERE A = ?");
+        mockedPs.setInt(1, 1);
+
+        SQLException serverError = new SQLException("Table not found", "42S02");
+        CompletableFuture<QueryResult<Object>> failed = new CompletableFuture<>();
+        failed.completeExceptionally(serverError);
+
+        when(mockJob.query(eq("SELECT * FROM BOGUS WHERE A = ?"), any(QueryOptions.class))).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(failed);
+
+        SQLException thrown = assertThrows(SQLException.class, mockedPs::execute);
+        assertEquals("42S02", thrown.getSQLState());
     }
 }

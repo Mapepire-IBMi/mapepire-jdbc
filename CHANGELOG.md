@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `@Transactional` and other framework-managed transactions (#16)
 - `Connection.isValid()` — enables connection pool health checks (HikariCP
   and friends) (#19)
+- Mockito-based unit tests covering `execute`/`commit`/`rollback`/pagination
+  logic without requiring a live IBM i server
 
 ### Security
 

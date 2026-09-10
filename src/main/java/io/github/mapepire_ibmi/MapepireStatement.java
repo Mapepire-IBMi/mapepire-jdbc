@@ -42,7 +42,7 @@ public class MapepireStatement implements Statement {
             try {
                 this.query.close().get();
             } catch (Exception e) {
-                throw new SQLException(e);
+                throw SqlExceptions.toSqlException(e);
             }
         }
         this.query = query;
@@ -71,7 +71,7 @@ public class MapepireStatement implements Statement {
             setExecutionState(newQuery, newQuery.execute(this.fetchSize).get());
             return new MapepireResultSet(this.result);
         } catch (Exception e) {
-            throw new SQLException(e);
+            throw SqlExceptions.toSqlException(e);
         }
     }
 
@@ -83,7 +83,7 @@ public class MapepireStatement implements Statement {
             setExecutionState(newQuery, newQuery.execute(this.fetchSize).get());
             return this.result.getUpdateCount();
         } catch (Exception e) {
-            throw new SQLException(e);
+            throw SqlExceptions.toSqlException(e);
         }
     }
 
@@ -98,7 +98,7 @@ public class MapepireStatement implements Statement {
             try {
                 this.query.close().get();
             } catch (Exception e) {
-                throw new SQLException(e);
+                throw SqlExceptions.toSqlException(e);
             }
         }
     }
@@ -177,7 +177,7 @@ public class MapepireStatement implements Statement {
             setExecutionState(newQuery, newQuery.execute(this.fetchSize).get());
             return result.getHasResults();
         } catch (Exception e) {
-            throw new SQLException(e);
+            throw SqlExceptions.toSqlException(e);
         }
     }
 
@@ -212,7 +212,7 @@ public class MapepireStatement implements Statement {
                 this.result = this.query.fetchMore(this.fetchSize).get();
                 return this.result.getHasResults();
             } catch (Exception e) {
-                throw new SQLException(e);
+                throw SqlExceptions.toSqlException(e);
             }
         }
     }
