@@ -108,8 +108,9 @@ class MapepireConnectionTest {
     void commitIssuesCommitSql() throws Exception {
         when(mockJob.<Object>execute("COMMIT")).thenReturn(CompletableFuture.completedFuture(null));
 
-        MapepireConnection c = new MapepireConnection(mockJob);
-        c.commit();
+        try (MapepireConnection c = new MapepireConnection(mockJob)) {
+            c.commit();
+        }
 
         verify(mockJob).execute("COMMIT");
     }
@@ -118,8 +119,9 @@ class MapepireConnectionTest {
     void rollbackIssuesRollbackSql() throws Exception {
         when(mockJob.<Object>execute("ROLLBACK")).thenReturn(CompletableFuture.completedFuture(null));
 
-        MapepireConnection c = new MapepireConnection(mockJob);
-        c.rollback();
+        try (MapepireConnection c = new MapepireConnection(mockJob)) {
+            c.rollback();
+        }
 
         verify(mockJob).execute("ROLLBACK");
     }
@@ -128,8 +130,9 @@ class MapepireConnectionTest {
     void setSchemaIssuesSetSchemaSql() throws Exception {
         when(mockJob.<Object>execute("SET SCHEMA MYLIB")).thenReturn(CompletableFuture.completedFuture(null));
 
-        MapepireConnection c = new MapepireConnection(mockJob);
-        c.setSchema("MYLIB");
+        try (MapepireConnection c = new MapepireConnection(mockJob)) {
+            c.setSchema("MYLIB");
+        }
 
         verify(mockJob).execute("SET SCHEMA MYLIB");
     }
@@ -139,8 +142,9 @@ class MapepireConnectionTest {
         when(mockJob.<Object>execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED"))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
-        MapepireConnection c = new MapepireConnection(mockJob);
-        c.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+        try (MapepireConnection c = new MapepireConnection(mockJob)) {
+            c.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+        }
 
         verify(mockJob).execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
     }
@@ -156,8 +160,9 @@ class MapepireConnectionTest {
         when(mockJob.<Map<String, String>>execute("SELECT CURRENT SCHEMA FROM SYSIBM.SYSDUMMY1"))
                 .thenReturn(CompletableFuture.completedFuture(result));
 
-        MapepireConnection c = new MapepireConnection(mockJob);
-        assertEquals("MYLIB", c.getSchema());
+        try (MapepireConnection c = new MapepireConnection(mockJob)) {
+            assertEquals("MYLIB", c.getSchema());
+        }
     }
 
     @Test
@@ -167,8 +172,9 @@ class MapepireConnectionTest {
         failed.completeExceptionally(serverError);
         when(mockJob.<Object>execute("COMMIT")).thenReturn(failed);
 
-        MapepireConnection c = new MapepireConnection(mockJob);
-        SQLException thrown = assertThrows(SQLException.class, c::commit);
-        assertEquals("40001", thrown.getSQLState());
+        try (MapepireConnection c = new MapepireConnection(mockJob)) {
+            SQLException thrown = assertThrows(SQLException.class, c::commit);
+            assertEquals("40001", thrown.getSQLState());
+        }
     }
 }
