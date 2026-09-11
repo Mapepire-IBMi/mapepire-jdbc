@@ -18,6 +18,7 @@ import java.sql.Statement;
 import java.sql.Struct;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -28,6 +29,7 @@ import io.github.mapepire_ibmi.types.QueryResult;
 public class MapepireConnection implements Connection {
     private final SqlJob job;
     private boolean autoCommit = true;
+    private int networkTimeoutMillis;
 
     public MapepireConnection(SqlJob job) {
         this.job = job;
@@ -35,6 +37,18 @@ public class MapepireConnection implements Connection {
 
     public SqlJob getJob() {
         return this.job;
+    }
+
+    /**
+     * Wait for the given future to complete, bounding the wait by the configured
+     * network timeout. A timeout of 0 (the default) means wait indefinitely,
+     * consistent with the JDBC "0 means no timeout" convention.
+     */
+    private <T> T resolve(CompletableFuture<T> future) throws Exception {
+        if (this.networkTimeoutMillis <= 0) {
+            return future.get();
+        }
+        return future.get(this.networkTimeoutMillis, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -99,7 +113,7 @@ public class MapepireConnection implements Connection {
     @Override
     public void commit() throws SQLException {
         try {
-            this.job.execute("COMMIT").get();
+            resolve(this.job.execute("COMMIT"));
         } catch (Exception e) {
             throw new SQLException(e);
         }
@@ -108,7 +122,7 @@ public class MapepireConnection implements Connection {
     @Override
     public void rollback() throws SQLException {
         try {
-            this.job.execute("ROLLBACK").get();
+            resolve(this.job.execute("ROLLBACK"));
         } catch (Exception e) {
             throw new SQLException(e);
         }
@@ -134,7 +148,7 @@ public class MapepireConnection implements Connection {
     public void setReadOnly(boolean readOnly) throws SQLException {
         try {
             String type = readOnly ? "READ ONLY" : "READ WRITE";
-            this.job.execute("SET TRANSACTION " + type).get();
+            resolve(this.job.execute("SET TRANSACTION " + type));
         } catch (Exception e) {
             throw new SQLException(e);
         }
@@ -182,7 +196,7 @@ public class MapepireConnection implements Connection {
                     return;
             }
 
-            this.job.execute("SET TRANSACTION ISOLATION LEVEL " + isolationLevel).get();
+            resolve(this.job.execute("SET TRANSACTION ISOLATION LEVEL " + isolationLevel));
         } catch (Exception e) {
             throw new SQLException(e);
         }
@@ -406,7 +420,7 @@ public class MapepireConnection implements Connection {
     @Override
     public void setSchema(String schema) throws SQLException {
         try {
-            this.job.execute("SET SCHEMA " + schema).get();
+            resolve(this.job.execute("SET SCHEMA " + schema));
         } catch (Exception e) {
             throw new SQLException(e);
         }
@@ -415,8 +429,8 @@ public class MapepireConnection implements Connection {
     @Override
     public String getSchema() throws SQLException {
         try {
-            QueryResult<Map<String, String>> result = this.job
-                    .<Map<String, String>>execute("SELECT CURRENT SCHEMA FROM SYSIBM.SYSDUMMY1").get();
+            QueryResult<Map<String, String>> result = resolve(this.job
+                    .<Map<String, String>>execute("SELECT CURRENT SCHEMA FROM SYSIBM.SYSDUMMY1"));
             if (result.getSuccess()) {
                 return result.getData().get(0).entrySet().iterator().next().getValue();
             } else {
@@ -434,13 +448,14 @@ public class MapepireConnection implements Connection {
 
     @Override
     public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNetworkTimeout'");
+        if (milliseconds < 0) {
+            throw new SQLException("Network timeout must not be negative");
+        }
+        this.networkTimeoutMillis = milliseconds;
     }
 
     @Override
     public int getNetworkTimeout() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNetworkTimeout'");
+        return this.networkTimeoutMillis;
     }
 }
