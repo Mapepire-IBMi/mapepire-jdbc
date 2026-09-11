@@ -31,7 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Statement.setQueryTimeout()` / `getQueryTimeout()` now bound server round-trips, and `Connection.setNetworkTimeout()` / `getNetworkTimeout()` now bound all connection-level operations; both default to 0 (wait indefinitely) per the JDBC spec
 
-
 - URL connection-string properties no longer pass through `Properties.load()`,
   which silently mangled values containing `\`, `#`, `!`, or `=` (e.g.
   `PASSWORD=#secret` was dropped as a comment). A manual parser now splits on
