@@ -20,6 +20,6 @@ final class SqlExceptions {
                 && (cause instanceof ExecutionException || cause instanceof CompletionException)) {
             cause = cause.getCause();
         }
-        return cause instanceof SQLException ? (SQLException) cause : new SQLException(e);
+        return cause instanceof SQLException ? (SQLException) cause : new SQLException(cause);
     }
 }

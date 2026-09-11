@@ -101,7 +101,7 @@ public class MapepireDriver implements Driver {
             job.connect(server).get();
             return new MapepireConnection(job);
         } catch (Exception e) {
-            throw new SQLException(e);
+            throw SqlExceptions.toSqlException(e);
         }
     }
 
