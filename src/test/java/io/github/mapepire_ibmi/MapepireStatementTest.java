@@ -4,16 +4,39 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.github.mapepire_ibmi.types.QueryResult;
+
+@ExtendWith(MockitoExtension.class)
+@SuppressWarnings("unchecked")
 class MapepireStatementTest {
 
     private MapepireStatement stmt;
+
+    @Mock
+    private SqlJob mockJob;
+
+    @Mock
+    private Query mockQuery;
 
     @BeforeEach
     void setUp() {
@@ -132,5 +155,95 @@ class MapepireStatementTest {
     @Test
     void unimplementedMethodsThrowSQLFeatureNotSupportedException() {
         assertThrows(SQLFeatureNotSupportedException.class, () -> stmt.cancel());
+    }
+
+    // -------------------------------------------------------------------------
+    // executeQuery / executeUpdate / execute against a mocked SqlJob and Query
+    // -------------------------------------------------------------------------
+
+    @Test
+    void executeQuerySuccessReturnsResultSetBackedByQueryData() throws Exception {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("COL1", "value");
+
+        QueryResult<Object> result = mock(QueryResult.class);
+        when(result.getData()).thenReturn(Collections.singletonList(row));
+
+        when(mockJob.query("SELECT 1")).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(result));
+
+        MapepireStatement s = new MapepireStatement(new MapepireConnection(mockJob));
+        try (ResultSet rs = s.executeQuery("SELECT 1")) {
+            assertTrue(rs.next());
+            assertEquals("value", rs.getString(1));
+        }
+    }
+
+    @Test
+    void executeUpdateSuccessReturnsUpdateCount() throws Exception {
+        QueryResult<Object> result = mock(QueryResult.class);
+        when(result.getUpdateCount()).thenReturn(5);
+
+        when(mockJob.query("DELETE FROM T")).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(result));
+
+        MapepireStatement s = new MapepireStatement(new MapepireConnection(mockJob));
+        assertEquals(5, s.executeUpdate("DELETE FROM T"));
+    }
+
+    @Test
+    void executeSuccessReturnsHasResultsFlag() throws Exception {
+        QueryResult<Object> result = mock(QueryResult.class);
+        when(result.getHasResults()).thenReturn(true);
+
+        when(mockJob.query("SELECT 1")).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(result));
+
+        MapepireStatement s = new MapepireStatement(new MapepireConnection(mockJob));
+        assertTrue(s.execute("SELECT 1"));
+    }
+
+    @Test
+    void executeQueryPropagatesSqlStateFromFailedQuery() throws Exception {
+        SQLException serverError = new SQLException("Syntax error", "42601");
+        CompletableFuture<QueryResult<Object>> failed = new CompletableFuture<>();
+        failed.completeExceptionally(serverError);
+
+        when(mockJob.query("SELECT BOGUS")).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(failed);
+
+        MapepireStatement s = new MapepireStatement(new MapepireConnection(mockJob));
+        SQLException thrown = assertThrows(SQLException.class, () -> s.executeQuery("SELECT BOGUS"));
+        assertEquals("42601", thrown.getSQLState());
+    }
+
+    // -------------------------------------------------------------------------
+    // getMoreResults pagination against a mocked Query
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getMoreResultsDrivesFetchMoreUntilDone() throws Exception {
+        QueryResult<Object> firstPage = mock(QueryResult.class);
+        when(firstPage.getData()).thenReturn(Collections.emptyList());
+        when(firstPage.getIsDone()).thenReturn(false);
+
+        QueryResult<Object> secondPage = mock(QueryResult.class);
+        when(secondPage.getIsDone()).thenReturn(true);
+        when(secondPage.getHasResults()).thenReturn(true);
+
+        when(mockJob.query("SELECT * FROM BIG_TABLE")).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(firstPage));
+        when(mockQuery.<Object>fetchMore(anyInt())).thenReturn(CompletableFuture.completedFuture(secondPage));
+
+        MapepireStatement s = new MapepireStatement(new MapepireConnection(mockJob));
+        s.executeQuery("SELECT * FROM BIG_TABLE");
+
+        // First page is not done: getMoreResults must fetch another page
+        assertTrue(s.getMoreResults());
+        verify(mockQuery, times(1)).fetchMore(100);
+
+        // Second page is done: getMoreResults must not fetch again
+        assertFalse(s.getMoreResults());
+        verify(mockQuery, times(1)).fetchMore(anyInt());
     }
 }

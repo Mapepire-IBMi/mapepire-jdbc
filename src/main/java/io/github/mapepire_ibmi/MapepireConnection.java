@@ -101,7 +101,7 @@ public class MapepireConnection implements Connection {
         try {
             this.job.execute("COMMIT").get();
         } catch (Exception e) {
-            throw new SQLException(e);
+            throw SqlExceptions.toSqlException(e);
         }
     }
 
@@ -110,7 +110,7 @@ public class MapepireConnection implements Connection {
         try {
             this.job.execute("ROLLBACK").get();
         } catch (Exception e) {
-            throw new SQLException(e);
+            throw SqlExceptions.toSqlException(e);
         }
     }
 
@@ -136,7 +136,7 @@ public class MapepireConnection implements Connection {
             String type = readOnly ? "READ ONLY" : "READ WRITE";
             this.job.execute("SET TRANSACTION " + type).get();
         } catch (Exception e) {
-            throw new SQLException(e);
+            throw SqlExceptions.toSqlException(e);
         }
     }
 
@@ -184,7 +184,7 @@ public class MapepireConnection implements Connection {
 
             this.job.execute("SET TRANSACTION ISOLATION LEVEL " + isolationLevel).get();
         } catch (Exception e) {
-            throw new SQLException(e);
+            throw SqlExceptions.toSqlException(e);
         }
     }
 
@@ -408,7 +408,7 @@ public class MapepireConnection implements Connection {
         try {
             this.job.execute("SET SCHEMA " + schema).get();
         } catch (Exception e) {
-            throw new SQLException(e);
+            throw SqlExceptions.toSqlException(e);
         }
     }
 
@@ -423,7 +423,7 @@ public class MapepireConnection implements Connection {
                 throw new SQLException(result.getError(), result.getSqlState());
             }
         } catch (Exception e) {
-            throw new SQLException(e);
+            throw SqlExceptions.toSqlException(e);
         }
     }
 
