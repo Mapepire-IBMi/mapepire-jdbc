@@ -2,14 +2,14 @@
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.mapepire-ibmi/mapepire-jdbc.svg?label=Maven%20Central&logo=apachemaven)](https://central.sonatype.com/artifact/io.github.mapepire-ibmi/mapepire-jdbc/)
 [![Maven Build](https://github.com/Mapepire-IBMi/mapepire-jdbc/actions/workflows/build.yml/badge.svg)](https://github.com/Mapepire-IBMi/mapepire-jdbc/actions/workflows/build.yml)
-[![License](https://img.shields.io/github/license/allenai/tango.svg?color=blue&cachedrop)](https://github.com/Mapepire-IBMi/mapepire-jdbc/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/Mapepire-IBMi/mapepire-jdbc.svg?color=blue)](https://github.com/Mapepire-IBMi/mapepire-jdbc/blob/main/LICENSE)
 
 ## Overview
 
-Mapepire JDBC driver for communicating with Db2 on IBM i.
-
-> [!WARNING]
-> ⚠️ This project is still work in progress!
+Mapepire JDBC driver for communicating with Db2 on IBM i. It talks to the
+[`mapepire-server`](https://github.com/Mapepire-IBMi/mapepire-server) daemon over a
+TLS-secured connection, so no ODBC/native driver or IBM i Access Client Solutions
+install is required on the client machine — just this JDBC driver.
 
 Full Documentation: https://mapepire-ibmi.github.io
 
@@ -18,6 +18,7 @@ Full Documentation: https://mapepire-ibmi.github.io
 ### Requirements
 
 * Java 8 or later
+* A running [`mapepire-server`](#server-component-setup) daemon on the target IBM i
 
 ### Install with `maven`
 
@@ -27,7 +28,7 @@ Add the dependency to your `pom.xml`:
 <dependency>
   <groupId>io.github.mapepire-ibmi</groupId>
   <artifactId>mapepire-jdbc</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0.0</version>
 </dependency>
 ```
 
@@ -121,3 +122,57 @@ try (Statement statement = connection.createStatement()) {
     System.out.println(updated + " rows updated");
 }
 ```
+
+### Transactions
+
+Auto-commit is on by default, same as the JDBC spec. Turn it off to group statements into a
+single transaction:
+
+```java
+connection.setAutoCommit(false);
+try (Statement statement = connection.createStatement()) {
+    statement.executeUpdate("UPDATE SAMPLE.EMPLOYEE SET SALARY = SALARY * 1.05 WHERE WORKDEPT = 'A00'");
+    statement.executeUpdate("INSERT INTO SAMPLE.AUDIT_LOG (MESSAGE) VALUES ('Applied raise for A00')");
+    connection.commit();
+} catch (SQLException e) {
+    connection.rollback();
+    throw e;
+}
+```
+
+## Supported JDBC API
+
+This driver targets the core of the JDBC API needed to run queries, updates, and transactions
+against Db2 for i — it is not yet a complete `java.sql` implementation. If your use case needs
+something from the "not yet supported" list below, please
+[open an issue](https://github.com/Mapepire-IBMi/mapepire-jdbc/issues).
+
+**Supported**
+
+* `Statement` and `PreparedStatement`: `executeQuery`, `executeUpdate`, `execute`, parameter
+  binding, fetch size, query timeout
+* Forward-only `ResultSet` reading, by column index or label
+* Transactions: `setAutoCommit`, `commit`, `rollback`, `setTransactionIsolation`, `setReadOnly`
+* `setSchema` / `getSchema`
+* `Connection.isValid()` for pool health checks
+* Query and network timeouts
+* `getWarnings` / `clearWarnings` (the driver never raises SQL warnings, so these always return `null`)
+
+**Not yet supported** (these throw `SQLFeatureNotSupportedException`)
+
+* `DatabaseMetaData` and `ResultSetMetaData`
+* Scrollable or updatable `ResultSet`s
+* Batch execution (`addBatch` / `executeBatch`)
+* `CallableStatement`, savepoints, generated keys
+* BLOB / CLOB / Array / Ref / RowId / SQLXML types
+
+## Contributing
+
+Bug reports, feature requests, and pull requests are welcome — see
+[CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community guidelines. Release notes for every
+version are tracked in [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE).

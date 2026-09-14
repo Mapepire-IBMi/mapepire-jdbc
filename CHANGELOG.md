@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-09-14
 
 ### Added
 
@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unimplemented methods across `MapepireConnection`, `MapepireStatement`,
   `MapepirePreparedStatement`, and `MapepireResultSet` now throw
   `SQLFeatureNotSupportedException` instead of unchecked `UnsupportedOperationException`
+- `getWarnings()` / `clearWarnings()` on `Connection`, `Statement`, and `ResultSet` no
+  longer throw `SQLFeatureNotSupportedException` — the driver never raises SQL warnings,
+  so these now behave like any other driver with nothing to report (return `null` / no-op)
 
 ### Changed
 

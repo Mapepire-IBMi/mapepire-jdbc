@@ -233,14 +233,17 @@ public class MapepireConnection implements Connection {
 
     @Override
     public SQLWarning getWarnings() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getWarnings'");
+        if (isClosed()) {
+            throw new SQLException("Connection is closed");
+        }
+        return null;
     }
 
     @Override
     public void clearWarnings() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'clearWarnings'");
+        if (isClosed()) {
+            throw new SQLException("Connection is closed");
+        }
     }
 
     @Override

@@ -229,14 +229,13 @@ public class MapepireStatement implements Statement {
 
     @Override
     public SQLWarning getWarnings() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getWarnings'");
+        checkClosed();
+        return null;
     }
 
     @Override
     public void clearWarnings() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'clearWarnings'");
+        checkClosed();
     }
 
     @Override
