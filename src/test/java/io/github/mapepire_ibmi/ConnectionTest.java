@@ -51,7 +51,7 @@ class ConnectionTest extends MapepireTest {
     void preparedStatementParameterBindingRoundTrip() throws Exception {
         try (Connection connection = openConnection();
                 PreparedStatement ps = connection.prepareStatement(
-                        "SELECT ? FROM SYSIBM.SYSDUMMY1")) {
+                        "SELECT CAST(? AS VARCHAR(50)) FROM SYSIBM.SYSDUMMY1")) {
             ps.setString(1, "hello");
             try (ResultSet rs = ps.executeQuery()) {
                 assertTrue(rs.next());
