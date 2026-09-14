@@ -31,6 +31,7 @@ public class MapepireConnection implements Connection {
     private boolean autoCommit = true;
     private int networkTimeoutMillis;
     private Executor networkTimeoutExecutor;
+    private volatile boolean closedByTimeout;
 
     public MapepireConnection(SqlJob job) {
         this.job = job;
@@ -38,6 +39,21 @@ public class MapepireConnection implements Connection {
 
     public SqlJob getJob() {
         return this.job;
+    }
+
+    /**
+     * Mark the connection unusable immediately and close the underlying job on the
+     * configured network-timeout executor (JDBC {@code setNetworkTimeout} contract).
+     */
+    void abortAfterNetworkTimeout() {
+        this.closedByTimeout = true;
+        Executor executor = this.networkTimeoutExecutor != null ? this.networkTimeoutExecutor : Runnable::run;
+        executor.execute(() -> {
+            try {
+                this.job.close();
+            } catch (Exception ignored) {
+            }
+        });
     }
 
     /**
@@ -53,13 +69,7 @@ public class MapepireConnection implements Connection {
             return future.get(this.networkTimeoutMillis, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             future.cancel(true);
-            Executor executor = this.networkTimeoutExecutor != null ? this.networkTimeoutExecutor : Runnable::run;
-            executor.execute(() -> {
-                try {
-                    this.job.close();
-                } catch (Exception ignored) {
-                }
-            });
+            abortAfterNetworkTimeout();
             throw e;
         }
     }
@@ -148,7 +158,7 @@ public class MapepireConnection implements Connection {
 
     @Override
     public boolean isClosed() throws SQLException {
-        return this.job.getStatus() == JobStatus.Ended;
+        return this.closedByTimeout || this.job.getStatus() == JobStatus.Ended;
     }
 
     @Override
