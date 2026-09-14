@@ -6,6 +6,9 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import io.github.mapepire_ibmi.types.QueryResult;
 import io.github.mapepire_ibmi.types.QueryState;
@@ -17,6 +20,7 @@ public class MapepireStatement implements Statement {
     private Query query;
     private QueryResult<Object> result;
     private int fetchSize = DEFAULT_FETCH_SIZE;
+    private int queryTimeoutSeconds;
     private boolean closed;
 
     public MapepireStatement(MapepireConnection connection) {
@@ -40,13 +44,45 @@ public class MapepireStatement implements Statement {
     protected void setExecutionState(Query query, QueryResult<Object> result) throws SQLException {
         if (this.query != null && this.query.getState() != QueryState.RUN_DONE) {
             try {
-                this.query.close().get();
+                this.connection.resolve(this.query.close());
             } catch (Exception e) {
                 throw SqlExceptions.toSqlException(e);
             }
         }
         this.query = query;
         this.result = result;
+    }
+
+    /**
+     * Wait for the given future to complete, bounding the wait by the configured
+     * query timeout. A timeout of 0 (the default) means wait indefinitely,
+     * consistent with the JDBC "0 means no timeout" convention.
+     */
+    protected <T> T resolve(CompletableFuture<T> future) throws Exception {
+        long queryMillis = this.queryTimeoutSeconds > 0 ? TimeUnit.SECONDS.toMillis(this.queryTimeoutSeconds) : 0;
+        long networkMillis = this.connection.getNetworkTimeout();
+
+        // Pick the shorter non-zero limit; 0 means no limit.
+        long effectiveMillis;
+        if (queryMillis > 0 && networkMillis > 0) {
+            effectiveMillis = Math.min(queryMillis, networkMillis);
+        } else {
+            effectiveMillis = Math.max(queryMillis, networkMillis);
+        }
+
+        if (effectiveMillis <= 0) {
+            return future.get();
+        }
+        try {
+            return future.get(effectiveMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            try {
+                this.connection.getJob().close();
+            } catch (Exception ignored) {
+            }
+            throw e;
+        }
     }
 
     @Override
@@ -66,24 +102,46 @@ public class MapepireStatement implements Statement {
     @Override
     public ResultSet executeQuery(String sql) throws SQLException {
         checkClosed();
+        Query newQuery = null;
         try {
-            Query newQuery = this.connection.getJob().query(sql);
-            setExecutionState(newQuery, newQuery.execute(this.fetchSize).get());
+            newQuery = this.connection.getJob().query(sql);
+            setExecutionState(newQuery, resolve(newQuery.execute(this.fetchSize)));
+            newQuery = null;
             return new MapepireResultSet(this.result);
+        } catch (SQLException e) {
+            throw e;
         } catch (Exception e) {
             throw SqlExceptions.toSqlException(e);
+        } finally {
+            if (newQuery != null) {
+                try {
+                    this.connection.resolve(newQuery.close());
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 
     @Override
     public int executeUpdate(String sql) throws SQLException {
         checkClosed();
+        Query newQuery = null;
         try {
-            Query newQuery = this.connection.getJob().query(sql);
-            setExecutionState(newQuery, newQuery.execute(this.fetchSize).get());
+            newQuery = this.connection.getJob().query(sql);
+            setExecutionState(newQuery, resolve(newQuery.execute(this.fetchSize)));
+            newQuery = null;
             return this.result.getUpdateCount();
+        } catch (SQLException e) {
+            throw e;
         } catch (Exception e) {
             throw SqlExceptions.toSqlException(e);
+        } finally {
+            if (newQuery != null) {
+                try {
+                    this.connection.resolve(newQuery.close());
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 
@@ -92,14 +150,17 @@ public class MapepireStatement implements Statement {
         if (this.closed) {
             return;
         }
-        this.closed = true;
 
-        if (this.query != null) {
-            try {
-                this.query.close().get();
-            } catch (Exception e) {
-                throw SqlExceptions.toSqlException(e);
+        try {
+            if (this.query != null) {
+                try {
+                    this.connection.resolve(this.query.close());
+                } catch (Exception e) {
+                    throw SqlExceptions.toSqlException(e);
+                }
             }
+        } finally {
+            this.closed = true;
         }
     }
 
@@ -135,14 +196,17 @@ public class MapepireStatement implements Statement {
 
     @Override
     public int getQueryTimeout() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getQueryTimeout'");
+        checkClosed();
+        return this.queryTimeoutSeconds;
     }
 
     @Override
     public void setQueryTimeout(int seconds) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setQueryTimeout'");
+        checkClosed();
+        if (seconds < 0) {
+            throw new SQLException("Query timeout must not be negative");
+        }
+        this.queryTimeoutSeconds = seconds;
     }
 
     @Override
@@ -172,12 +236,23 @@ public class MapepireStatement implements Statement {
     @Override
     public boolean execute(String sql) throws SQLException {
         checkClosed();
+        Query newQuery = null;
         try {
-            Query newQuery = this.connection.getJob().query(sql);
-            setExecutionState(newQuery, newQuery.execute(this.fetchSize).get());
+            newQuery = this.connection.getJob().query(sql);
+            setExecutionState(newQuery, resolve(newQuery.execute(this.fetchSize)));
+            newQuery = null;
             return result.getHasResults();
+        } catch (SQLException e) {
+            throw e;
         } catch (Exception e) {
             throw SqlExceptions.toSqlException(e);
+        } finally {
+            if (newQuery != null) {
+                try {
+                    this.connection.resolve(newQuery.close());
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 
@@ -209,7 +284,7 @@ public class MapepireStatement implements Statement {
             return false;
         } else {
             try {
-                this.result = this.query.fetchMore(this.fetchSize).get();
+                this.result = resolve(this.query.fetchMore(this.fetchSize));
                 return this.result.getHasResults();
             } catch (Exception e) {
                 throw SqlExceptions.toSqlException(e);
