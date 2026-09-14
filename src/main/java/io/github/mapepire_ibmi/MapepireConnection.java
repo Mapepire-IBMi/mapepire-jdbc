@@ -9,8 +9,8 @@ import java.sql.DatabaseMetaData;
 import java.sql.NClob;
 import java.sql.PreparedStatement;
 import java.sql.SQLClientInfoException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLWarning;
 import java.sql.SQLXML;
 import java.sql.Savepoint;
@@ -30,6 +30,7 @@ public class MapepireConnection implements Connection {
     private final SqlJob job;
     private boolean autoCommit = true;
     private int networkTimeoutMillis;
+    private Executor networkTimeoutExecutor;
 
     public MapepireConnection(SqlJob job) {
         this.job = job;
@@ -44,11 +45,23 @@ public class MapepireConnection implements Connection {
      * network timeout. A timeout of 0 (the default) means wait indefinitely,
      * consistent with the JDBC "0 means no timeout" convention.
      */
-    private <T> T resolve(CompletableFuture<T> future) throws Exception {
+    <T> T resolve(CompletableFuture<T> future) throws Exception {
         if (this.networkTimeoutMillis <= 0) {
             return future.get();
         }
-        return future.get(this.networkTimeoutMillis, TimeUnit.MILLISECONDS);
+        try {
+            return future.get(this.networkTimeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            Executor executor = this.networkTimeoutExecutor != null ? this.networkTimeoutExecutor : Runnable::run;
+            executor.execute(() -> {
+                try {
+                    this.job.close();
+                } catch (Exception ignored) {
+                }
+            });
+            throw e;
+        }
     }
 
     @Override
@@ -448,14 +461,24 @@ public class MapepireConnection implements Connection {
 
     @Override
     public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
+        if (isClosed()) {
+            throw new SQLException("Connection is closed");
+        }
+        if (executor == null) {
+            throw new SQLException("Executor must not be null");
+        }
         if (milliseconds < 0) {
             throw new SQLException("Network timeout must not be negative");
         }
         this.networkTimeoutMillis = milliseconds;
+        this.networkTimeoutExecutor = executor;
     }
 
     @Override
     public int getNetworkTimeout() throws SQLException {
+        if (isClosed()) {
+            throw new SQLException("Connection is closed");
+        }
         return this.networkTimeoutMillis;
     }
 }
