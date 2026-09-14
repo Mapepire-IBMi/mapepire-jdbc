@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and friends) (#19)
 - Mockito-based unit tests covering `execute`/`commit`/`rollback`/pagination
   logic without requiring a live IBM i server
+- Integration tests for `PreparedStatement` binding, schema round-trip, transaction isolation, concurrent statements, error `sqlState`, and connection lifecycle 
 
 ### Security
 
