@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `Statement.setQueryTimeout()` / `getQueryTimeout()` now bound server round-trips, and `Connection.setNetworkTimeout()` / `getNetworkTimeout()` now bound all connection-level operations; both default to 0 (wait indefinitely) per the JDBC spec
+- `Statement.setQueryTimeout()` / `getQueryTimeout()` now bound server round-trips, and `Connection.setNetworkTimeout()` / `getNetworkTimeout()` now bound all connection-level operations; both default to 0 (wait indefinitely) per the JDBC spec. Query timeout can either go through network timeout flow or query timeout flow, depending on what is shorter.
 
 - URL connection-string properties no longer pass through `Properties.load()`,
   which silently mangled values containing `\`, `#`, `!`, or `=` (e.g.

@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.SQLException;
@@ -20,15 +22,17 @@ class MapepireStatementQueryTimeoutTest {
 
     // A future that never completes stands in for a request whose response the
     // server never sends, e.g. because the server has hung.
-    private static MapepireStatement statementBackedByHungServer() throws Exception {
-        SqlJob job = mock(SqlJob.class);
-        Query query = mock(Query.class);
+    private static MapepireStatement statementBackedByHungServer(SqlJob job, Query query) throws Exception {
         when(job.query(anyString())).thenReturn(query);
 
         CompletableFuture<QueryResult<Object>> neverCompletes = new CompletableFuture<>();
         when(query.<Object>execute(anyInt())).thenReturn(neverCompletes);
 
         return new MapepireStatement(new MapepireConnection(job));
+    }
+
+    private static MapepireStatement statementBackedByHungServer() throws Exception {
+        return statementBackedByHungServer(mock(SqlJob.class), mock(Query.class));
     }
 
     @Test
@@ -68,5 +72,19 @@ class MapepireStatementQueryTimeoutTest {
         SQLException e = assertThrows(SQLException.class,
                 () -> stmt.executeUpdate("DELETE FROM T"));
         assertInstanceOf(TimeoutException.class, e.getCause());
+    }
+
+    @Test
+    void queryTimeoutDoesNotCloseTheConnectionJob() throws Exception {
+        SqlJob job = mock(SqlJob.class);
+        Query query = mock(Query.class);
+        MapepireStatement stmt = statementBackedByHungServer(job, query);
+        stmt.setQueryTimeout(1);
+
+        SQLException e = assertThrows(SQLException.class,
+                () -> stmt.executeQuery("SELECT 1 FROM SYSIBM.SYSDUMMY1"));
+        assertInstanceOf(TimeoutException.class, e.getCause());
+
+        verify(job, never()).close();
     }
 }

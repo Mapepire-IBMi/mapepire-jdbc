@@ -55,8 +55,12 @@ public class MapepireStatement implements Statement {
 
     /**
      * Wait for the given future to complete, bounding the wait by the configured
-     * query timeout. A timeout of 0 (the default) means wait indefinitely,
-     * consistent with the JDBC "0 means no timeout" convention.
+     * query timeout and the connection network timeout. A timeout of 0 (the
+     * default) means wait indefinitely, consistent with the JDBC "0 means no
+     * timeout" convention.
+     * <p>
+     * Query timeout cancels only the active query. Network timeout aborts the
+     * connection via {@link MapepireConnection#abortAfterNetworkTimeout()}.
      */
     protected <T> T resolve(CompletableFuture<T> future) throws Exception {
         long queryMillis = this.queryTimeoutSeconds > 0 ? TimeUnit.SECONDS.toMillis(this.queryTimeoutSeconds) : 0;
@@ -77,9 +81,17 @@ public class MapepireStatement implements Statement {
             return future.get(effectiveMillis, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             future.cancel(true);
-            try {
-                this.connection.getJob().close();
-            } catch (Exception ignored) {
+            // When both limits are set, treat the shorter (or equal) network limit as
+            // a connection-level abort; otherwise cancel only the active query.
+            boolean networkTimedOut = networkMillis > 0
+                    && (queryMillis <= 0 || networkMillis <= queryMillis);
+            if (networkTimedOut) {
+                this.connection.abortAfterNetworkTimeout();
+            } else if (this.query != null) {
+                try {
+                    this.query.close();
+                } catch (Exception ignored) {
+                }
             }
             throw e;
         }
