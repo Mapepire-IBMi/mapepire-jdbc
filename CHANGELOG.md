@@ -62,4 +62,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bumped JaCoCo from 0.8.4 to 0.8.12 to support running tests on modern JDKs
 - Bumped JUnit to 5.12.2, Checkstyle to 10.26.1, checkstyle-rules to 7.0.1,
-  JaCoCo to 0.8.13, and maven-gpg-plugin to 3.2.8
+  JaCoCo to 0.8.13, and maven-gpg-plugin to 3.2.5
