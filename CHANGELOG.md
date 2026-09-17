@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of being permanently disabled. It can be turned off per-connection
   via the `REJECTUNAUTHORIZED=false` connection property for local
   development against self-signed certificates
+- Updated Readme
 
 ### Fixed
 
