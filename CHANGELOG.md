@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- Pinned transitive `jackson-databind` to 2.18.9 via `<dependencyManagement>` to address 5 CVE alerts
+- Pinned transitive `jackson-databind` to 2.18.10 via `<dependencyManagement>` to address 5 CVE alerts
 
 ## [1.0.0] - 2026-09-15
 
