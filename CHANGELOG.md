@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dependencies
+
+- Bump `mapepire-sdk` from 0.1.3 to 1.0.0
+
 ### Security
 
 - Pinned transitive `jackson-databind` to 2.18.10 via `<dependencyManagement>` to address 5 CVE alerts
