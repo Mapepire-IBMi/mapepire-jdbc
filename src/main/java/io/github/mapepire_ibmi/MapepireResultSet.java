@@ -34,6 +34,7 @@ public class MapepireResultSet implements ResultSet {
     private boolean closed;
     private boolean lastWasNull;
     private Object[] currentRowValues;
+    private ResultSetMetaData metaData;
 
     public MapepireResultSet(QueryResult<Object> result) {
         this.result = result;
@@ -364,8 +365,16 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public ResultSetMetaData getMetaData() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getMetaData'");
+        if (this.closed) {
+            throw new SQLException("ResultSet is closed");
+        }
+        if (this.metaData == null) {
+            if (this.result.getMetadata() == null) {
+                throw new SQLException("Column metadata is not available for this result");
+            }
+            this.metaData = new MapepireResultSetMetaData(this.result.getMetadata());
+        }
+        return this.metaData;
     }
 
     @Override

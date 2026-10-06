@@ -295,7 +295,12 @@ public class MapepireStatement implements Statement {
             return false;
         } else {
             try {
-                this.result = resolve(this.query.fetchMore(this.fetchSize));
+                QueryResult<Object> next = resolve(this.query.fetchMore(this.fetchSize));
+                // Only the first block of a query carries column metadata.
+                if (next.getMetadata() == null) {
+                    next.setMetadata(this.result.getMetadata());
+                }
+                this.result = next;
                 return this.result.getHasResults();
             } catch (Exception e) {
                 throw SqlExceptions.toSqlException(e);

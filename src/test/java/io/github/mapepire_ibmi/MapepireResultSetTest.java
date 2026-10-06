@@ -430,6 +430,6 @@ class MapepireResultSetTest {
 
     @Test
     void unimplementedMethodsThrowSQLFeatureNotSupportedException() {
-        assertThrows(SQLFeatureNotSupportedException.class, () -> rs.getMetaData());
+        assertThrows(SQLFeatureNotSupportedException.class, () -> rs.getRow());
     }
 }

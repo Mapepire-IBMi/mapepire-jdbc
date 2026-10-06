@@ -2,6 +2,7 @@ package io.github.mapepire_ibmi;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,6 +14,7 @@ import static org.mockito.Mockito.when;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Types;
@@ -27,6 +29,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.github.mapepire_ibmi.types.ColumnMetadata;
+import io.github.mapepire_ibmi.types.QueryMetadata;
 import io.github.mapepire_ibmi.types.QueryOptions;
 import io.github.mapepire_ibmi.types.QueryResult;
 
@@ -200,5 +204,39 @@ class MapepirePreparedStatementTest {
 
         SQLException thrown = assertThrows(SQLException.class, mockedPs::execute);
         assertEquals("42S02", thrown.getSQLState());
+    }
+
+    // -------------------------------------------------------------------------
+    // getMetaData
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getMetaDataIsNullBeforeExecution() throws SQLException {
+        // Column metadata only arrives with the execution result
+        assertNull(ps.getMetaData());
+    }
+
+    @Test
+    void getMetaDataDescribesResultAfterExecution() throws Exception {
+        MapepirePreparedStatement mockedPs = preparedStatementWithMockJob("SELECT ID FROM T WHERE A = ?");
+        mockedPs.setInt(1, 1);
+
+        QueryResult<Object> result = new QueryResult<>();
+        result.setData(Collections.emptyList());
+        result.setMetadata(new QueryMetadata(1, Collections.singletonList(new ColumnMetadata(11, "ID", "ID",
+                "INTEGER", 10, 0, false, ResultSetMetaData.columnNoNulls, false, true, "T")), null, null));
+        when(mockJob.query(eq("SELECT ID FROM T WHERE A = ?"), any(QueryOptions.class))).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(result));
+
+        mockedPs.executeQuery().close();
+        ResultSetMetaData md = mockedPs.getMetaData();
+        assertEquals(1, md.getColumnCount());
+        assertEquals(Types.INTEGER, md.getColumnType(1));
+    }
+
+    @Test
+    void getMetaDataThrowsWhenClosed() throws SQLException {
+        ps.close();
+        assertThrows(SQLException.class, ps::getMetaData);
     }
 }

@@ -157,10 +157,14 @@ something from the "not yet supported" list below, please
 * `Connection.isValid()` for pool health checks
 * Query and network timeouts
 * `getWarnings` / `clearWarnings` (the driver never raises SQL warnings, so these always return `null`)
+* `DatabaseMetaData`: tables, columns, schemas, primary/foreign keys, indexes, procedures, functions,
+  type info, UDTs, and privileges, read from the Db2 for i `SYSIBM` catalog views, plus product,
+  version, and capability information
+* `ResultSetMetaData` from `ResultSet.getMetaData()`, and from `PreparedStatement.getMetaData()` once
+  the statement has been executed (it returns `null` before execution)
 
 **Not yet supported** (these throw `SQLFeatureNotSupportedException`)
 
-* `DatabaseMetaData` and `ResultSetMetaData`
 * Scrollable or updatable `ResultSet`s
 * Batch execution (`addBatch` / `executeBatch`)
 * `CallableStatement`, savepoints, generated keys
