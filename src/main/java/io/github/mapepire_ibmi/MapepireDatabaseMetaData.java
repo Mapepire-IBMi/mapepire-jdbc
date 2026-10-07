@@ -1322,14 +1322,21 @@ public class MapepireDatabaseMetaData implements DatabaseMetaData {
         }
 
         Where in(String column, List<Object> values) {
-            if (values != null && !values.isEmpty()) {
-                StringBuilder markers = new StringBuilder();
-                for (int i = 0; i < values.size(); i++) {
-                    markers.append(i == 0 ? "?" : ", ?");
-                }
-                condition(column + " IN (" + markers + ")");
-                this.parameters.addAll(values);
+            if (values == null) {
+                // null means "no filter" — skip the predicate entirely
+                return this;
             }
+            if (values.isEmpty()) {
+                // empty list means "match nothing" — no row can satisfy IN ()
+                condition("1=0");
+                return this;
+            }
+            StringBuilder markers = new StringBuilder();
+            for (int i = 0; i < values.size(); i++) {
+                markers.append(i == 0 ? "?" : ", ?");
+            }
+            condition(column + " IN (" + markers + ")");
+            this.parameters.addAll(values);
             return this;
         }
 
