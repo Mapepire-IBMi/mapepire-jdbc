@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Collections;
@@ -24,6 +25,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.github.mapepire_ibmi.types.ColumnMetadata;
+import io.github.mapepire_ibmi.types.QueryMetadata;
 import io.github.mapepire_ibmi.types.QueryResult;
 
 @ExtendWith(MockitoExtension.class)
@@ -245,5 +248,32 @@ class MapepireStatementTest {
         // Second page is done: getMoreResults must not fetch again
         assertFalse(s.getMoreResults());
         verify(mockQuery, times(1)).fetchMore(anyInt());
+    }
+
+    @Test
+    void getMoreResultsKeepsColumnMetadataFromFirstPage() throws Exception {
+        QueryMetadata metadata = new QueryMetadata(1, Collections.singletonList(new ColumnMetadata(11, "ID", "ID",
+                "INTEGER", 10, 0, false, ResultSetMetaData.columnNoNulls, false, true, null)), null, null);
+        QueryResult<Object> firstPage = new QueryResult<>();
+        firstPage.setData(Collections.emptyList());
+        firstPage.setMetadata(metadata);
+
+        // The server only sends metadata with the first block
+        QueryResult<Object> secondPage = new QueryResult<>();
+        secondPage.setData(Collections.emptyList());
+        secondPage.setIsDone(true);
+        secondPage.setHasResults(true);
+
+        when(mockJob.query("SELECT ID FROM BIG_TABLE")).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(firstPage));
+        when(mockQuery.<Object>fetchMore(anyInt())).thenReturn(CompletableFuture.completedFuture(secondPage));
+
+        MapepireStatement s = new MapepireStatement(new MapepireConnection(mockJob));
+        s.executeQuery("SELECT ID FROM BIG_TABLE");
+        assertTrue(s.getMoreResults());
+
+        try (ResultSet rs = s.getResultSet()) {
+            assertEquals("ID", rs.getMetaData().getColumnName(1));
+        }
     }
 }

@@ -17,8 +17,8 @@ import io.github.mapepire_ibmi.types.JDBCOptions;
 
 public class MapepireDriver implements Driver {
 
-    private static final int MAJOR_VERSION = 1;
-    private static final int MINOR_VERSION = 0;
+    static final int MAJOR_VERSION = 1;
+    static final int MINOR_VERSION = 0;
     private static final int DEFAULT_PORT = 8076;
     private static final String URL_REGEX = "^(?i)jdbc:mapepire://(.+?)(:(\\d+))?(;.+?=.+?)*$";
     private static final String HOST = "HOST";
@@ -99,7 +99,9 @@ public class MapepireDriver implements Driver {
             JDBCOptions options = new JDBCOptions(p);
             SqlJob job = new SqlJob(options);
             job.connect(server).get();
-            return new MapepireConnection(job);
+            // Only host and port: the original URL may carry a password property.
+            String connectionUrl = "jdbc:mapepire://" + server.getHost() + ":" + server.getPort();
+            return new MapepireConnection(job, connectionUrl);
         } catch (Exception e) {
             throw SqlExceptions.toSqlException(e);
         }

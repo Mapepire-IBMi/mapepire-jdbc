@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `DatabaseMetaData` via `Connection.getMetaData()`
+- `ResultSetMetaData` via `ResultSet.getMetaData()` and `PreparedStatement.getMetaData()`
+
 ### Dependencies
 
 - Bump `mapepire-sdk` from 0.1.3 to 1.0.0

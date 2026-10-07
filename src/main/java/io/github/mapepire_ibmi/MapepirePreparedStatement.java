@@ -27,6 +27,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import io.github.mapepire_ibmi.types.QueryOptions;
+import io.github.mapepire_ibmi.types.QueryResult;
 
 public class MapepirePreparedStatement extends MapepireStatement implements PreparedStatement {
     private final String sql;
@@ -272,8 +273,14 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
 
     @Override
     public ResultSetMetaData getMetaData() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getMetaData'");
+        checkClosed();
+        QueryResult<Object> result = getResult();
+        if (result == null || result.getMetadata() == null) {
+            // Column metadata only arrives with the execution result. JDBC allows
+            // null when the driver cannot describe the result up front.
+            return null;
+        }
+        return new MapepireResultSetMetaData(result.getMetadata());
     }
 
     @Override

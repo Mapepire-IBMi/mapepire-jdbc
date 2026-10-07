@@ -28,17 +28,35 @@ import io.github.mapepire_ibmi.types.QueryResult;
 
 public class MapepireConnection implements Connection {
     private final SqlJob job;
+    private final String url;
     private boolean autoCommit = true;
     private int networkTimeoutMillis;
     private Executor networkTimeoutExecutor;
     private volatile boolean closedByTimeout;
+    private DatabaseMetaData metaData;
 
     public MapepireConnection(SqlJob job) {
+        this(job, null);
+    }
+
+    /**
+     * Create a connection over the given job.
+     *
+     * @param job The connected SQL job.
+     * @param url The URL reported by {@link DatabaseMetaData#getURL()}. Must not
+     *            contain credentials. May be null.
+     */
+    public MapepireConnection(SqlJob job, String url) {
         this.job = job;
+        this.url = url;
     }
 
     public SqlJob getJob() {
         return this.job;
+    }
+
+    String getUrl() {
+        return this.url;
     }
 
     /**
@@ -163,8 +181,13 @@ public class MapepireConnection implements Connection {
 
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getMetaData'");
+        if (isClosed()) {
+            throw new SQLException("Connection is closed");
+        }
+        if (this.metaData == null) {
+            this.metaData = new MapepireDatabaseMetaData(this);
+        }
+        return this.metaData;
     }
 
     @Override

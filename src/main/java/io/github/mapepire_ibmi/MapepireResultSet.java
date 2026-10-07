@@ -19,6 +19,7 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLWarning;
 import java.sql.SQLXML;
 import java.sql.Statement;
+import java.sql.Types;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
@@ -34,6 +35,7 @@ public class MapepireResultSet implements ResultSet {
     private boolean closed;
     private boolean lastWasNull;
     private Object[] currentRowValues;
+    private ResultSetMetaData metaData;
 
     public MapepireResultSet(QueryResult<Object> result) {
         this.result = result;
@@ -364,13 +366,56 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public ResultSetMetaData getMetaData() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getMetaData'");
+        if (this.closed) {
+            throw new SQLException("ResultSet is closed");
+        }
+        if (this.metaData == null) {
+            if (this.result.getMetadata() == null) {
+                throw new SQLException("Column metadata is not available for this result");
+            }
+            this.metaData = new MapepireResultSetMetaData(this.result.getMetadata());
+        }
+        return this.metaData;
     }
 
     @Override
     public Object getObject(int columnIndex) throws SQLException {
-        return getValue(columnIndex);
+        Object value = getValue(columnIndex);
+        if (value == null) {
+            return null;
+        }
+        // If no column metadata is available, return the raw JSON value as-is.
+        int sqlType;
+        try {
+            sqlType = getMetaData().getColumnType(columnIndex);
+        } catch (SQLException e) {
+            return value;
+        }
+        switch (sqlType) {
+            case Types.SMALLINT:
+            case Types.INTEGER:
+                return getNumber(columnIndex).intValue();
+            case Types.BIGINT:
+                return getNumber(columnIndex).longValue();
+            case Types.DECIMAL:
+            case Types.NUMERIC:
+                return getBigDecimal(columnIndex);
+            case Types.REAL:
+                return getNumber(columnIndex).floatValue();
+            case Types.FLOAT:
+            case Types.DOUBLE:
+                return getNumber(columnIndex).doubleValue();
+            case Types.DATE:
+                return getDate(columnIndex);
+            case Types.TIME:
+                return getTime(columnIndex);
+            case Types.TIMESTAMP:
+                return getTimestamp(columnIndex);
+            case Types.BOOLEAN:
+                return getBoolean(columnIndex);
+            default:
+                return value;
+        }
     }
 
     @Override
