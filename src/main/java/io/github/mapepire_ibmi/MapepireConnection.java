@@ -271,15 +271,13 @@ public class MapepireConnection implements Connection {
 
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'createStatement'");
+        return new MapepireStatement(this, resultSetType, resultSetConcurrency);
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
             throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareStatement'");
+        return new MapepirePreparedStatement(this, sql, resultSetType, resultSetConcurrency);
     }
 
     @Override
@@ -339,15 +337,15 @@ public class MapepireConnection implements Connection {
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability)
             throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'createStatement'");
+        MapepireStatement.checkResultSetHoldability(resultSetHoldability);
+        return createStatement(resultSetType, resultSetConcurrency);
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency,
             int resultSetHoldability) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareStatement'");
+        MapepireStatement.checkResultSetHoldability(resultSetHoldability);
+        return prepareStatement(sql, resultSetType, resultSetConcurrency);
     }
 
     @Override

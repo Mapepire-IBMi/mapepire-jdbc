@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `DatabaseMetaData` via `Connection.getMetaData()`
 - `ResultSetMetaData` via `ResultSet.getMetaData()` and `PreparedStatement.getMetaData()`
+- Scrollable `ResultSet`s (`TYPE_SCROLL_INSENSITIVE`) via `createStatement(type, concurrency)` and
+  `prepareStatement(sql, type, concurrency)`
+- Updatable `ResultSet`s (`CONCUR_UPDATABLE`) for single-table queries with a primary key
+- `ResultSet` fetch direction, fetch size, holdability, type, concurrency, and statement accessors
 
 ### Dependencies
 

@@ -7,18 +7,24 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Date;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.github.mapepire_ibmi.types.ColumnMetadata;
+import io.github.mapepire_ibmi.types.QueryMetadata;
 import io.github.mapepire_ibmi.types.QueryResult;
 
 class MapepireResultSetTest {
@@ -430,6 +436,107 @@ class MapepireResultSetTest {
 
     @Test
     void unimplementedMethodsThrowSQLFeatureNotSupportedException() {
-        assertThrows(SQLFeatureNotSupportedException.class, () -> rs.getRow());
+        assertThrows(SQLFeatureNotSupportedException.class, () -> rs.getCursorName());
+    }
+
+    // -------------------------------------------------------------------------
+    // cursor position and scrolling
+    // -------------------------------------------------------------------------
+
+    private static MapepireResultSet buildResultSet(int rowCount, int type) {
+        List<Object> rows = new ArrayList<>();
+        for (int id = 1; id <= rowCount; id++) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("ID", id);
+            rows.add(row);
+        }
+        QueryResult<Object> result = new QueryResult<>();
+        result.setData(rows);
+        return new MapepireResultSet(null, "SELECT ID FROM T", result, type, ResultSet.CONCUR_READ_ONLY);
+    }
+
+    @Test
+    void forwardOnlyTracksPositionButCannotScroll() throws SQLException {
+        assertEquals(ResultSet.TYPE_FORWARD_ONLY, rs.getType());
+        assertTrue(rs.isBeforeFirst());
+        rs.next();
+        assertTrue(rs.isLast());
+        assertEquals(1, rs.getRow());
+        assertFalse(rs.next());
+        assertTrue(rs.isAfterLast());
+        assertThrows(SQLException.class, () -> rs.getString(1));
+        assertThrows(SQLException.class, () -> rs.previous());
+        assertThrows(SQLException.class, () -> rs.absolute(1));
+    }
+
+    @Test
+    void scrollInsensitiveMovesInAnyDirection() throws SQLException {
+        MapepireResultSet scroll = buildResultSet(5, ResultSet.TYPE_SCROLL_INSENSITIVE);
+        assertTrue(scroll.last());
+        assertEquals(5, scroll.getRow());
+        assertTrue(scroll.previous());
+        assertEquals(4, scroll.getInt(1));
+        assertTrue(scroll.absolute(-5));
+        assertEquals(1, scroll.getInt(1));
+        assertTrue(scroll.relative(2));
+        assertEquals(3, scroll.getInt(1));
+        assertFalse(scroll.relative(Integer.MAX_VALUE));
+        assertTrue(scroll.isAfterLast());
+        assertFalse(scroll.absolute(0));
+        assertTrue(scroll.isBeforeFirst());
+    }
+
+    @Test
+    void scrollingAnEmptyResultSetFindsNoRows() throws SQLException {
+        MapepireResultSet scroll = buildResultSet(0, ResultSet.TYPE_SCROLL_INSENSITIVE);
+        assertFalse(scroll.first());
+        assertFalse(scroll.last());
+        assertFalse(scroll.isBeforeFirst());
+        assertFalse(scroll.isAfterLast());
+    }
+
+    @Test
+    void findColumnUsesMetadataWhenThereAreNoRows() throws SQLException {
+        QueryResult<Object> empty = new QueryResult<>();
+        empty.setData(Collections.emptyList());
+        empty.setMetadata(new QueryMetadata(1, Collections.singletonList(new ColumnMetadata(11, "ID", "ID",
+                "INTEGER", 10, 0, false, ResultSetMetaData.columnNoNulls, false, true, "T")), null, null));
+        try (MapepireResultSet emptyRs = new MapepireResultSet(empty)) {
+            assertEquals(1, emptyRs.findColumn("id"));
+        }
+    }
+
+    @Test
+    void updaterMethodsThrowOnReadOnlyResultSet() throws SQLException {
+        rs.next();
+        SQLException e = assertThrows(SQLException.class, () -> rs.updateString(1, "Bob"));
+        assertTrue(e.getMessage().contains("CONCUR_READ_ONLY"), e.getMessage());
+    }
+
+    // -------------------------------------------------------------------------
+    // fetch direction, fetch size, holdability
+    // -------------------------------------------------------------------------
+
+    @Test
+    void fetchHintsAndHoldabilityAreStoredAndReturned() throws SQLException {
+        assertEquals(ResultSet.FETCH_FORWARD, rs.getFetchDirection());
+        assertEquals(0, rs.getFetchSize());
+        assertEquals(ResultSet.HOLD_CURSORS_OVER_COMMIT, rs.getHoldability());
+
+        rs.setFetchDirection(ResultSet.FETCH_REVERSE);
+        rs.setFetchSize(50);
+        assertEquals(ResultSet.FETCH_REVERSE, rs.getFetchDirection());
+        assertEquals(50, rs.getFetchSize());
+
+        assertThrows(SQLException.class, () -> rs.setFetchDirection(999));
+        assertThrows(SQLException.class, () -> rs.setFetchSize(-1));
+    }
+
+    @Test
+    void fetchHintsThrowAfterClose() throws SQLException {
+        rs.close();
+        assertThrows(SQLException.class, () -> rs.getFetchDirection());
+        assertThrows(SQLException.class, () -> rs.getFetchSize());
+        assertThrows(SQLException.class, () -> rs.getHoldability());
     }
 }

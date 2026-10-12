@@ -1183,12 +1183,13 @@ public class MapepireDatabaseMetaData implements DatabaseMetaData {
 
     @Override
     public boolean supportsResultSetType(int type) throws SQLException {
-        return type == ResultSet.TYPE_FORWARD_ONLY;
+        return type == ResultSet.TYPE_FORWARD_ONLY || type == ResultSet.TYPE_SCROLL_INSENSITIVE;
     }
 
     @Override
     public boolean supportsResultSetConcurrency(int type, int concurrency) throws SQLException {
-        return type == ResultSet.TYPE_FORWARD_ONLY && concurrency == ResultSet.CONCUR_READ_ONLY;
+        return supportsResultSetType(type)
+                && (concurrency == ResultSet.CONCUR_READ_ONLY || concurrency == ResultSet.CONCUR_UPDATABLE);
     }
 
     @Override
@@ -1201,14 +1202,17 @@ public class MapepireDatabaseMetaData implements DatabaseMetaData {
         return ResultSet.HOLD_CURSORS_OVER_COMMIT;
     }
 
+    // An updatable result set applies its own updates to the row it holds and removes
+    // the rows it deletes, but does not add the rows it inserts.
+
     @Override
     public boolean ownUpdatesAreVisible(int type) throws SQLException {
-        return false;
+        return supportsResultSetType(type);
     }
 
     @Override
     public boolean ownDeletesAreVisible(int type) throws SQLException {
-        return false;
+        return supportsResultSetType(type);
     }
 
     @Override
