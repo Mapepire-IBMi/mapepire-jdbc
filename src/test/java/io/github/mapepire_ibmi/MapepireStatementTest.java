@@ -276,4 +276,51 @@ class MapepireStatementTest {
             assertEquals("ID", rs.getMetaData().getColumnName(1));
         }
     }
+
+    // -------------------------------------------------------------------------
+    // result set type and concurrency
+    // -------------------------------------------------------------------------
+
+    @Test
+    void scrollInsensitiveResultSetFetchesEveryRowUpFront() throws Exception {
+        Map<String, Object> row1 = new LinkedHashMap<>();
+        row1.put("ID", 1);
+        Map<String, Object> row2 = new LinkedHashMap<>();
+        row2.put("ID", 2);
+        QueryResult<Object> firstPage = new QueryResult<>();
+        firstPage.setData(Collections.singletonList(row1));
+        QueryResult<Object> secondPage = new QueryResult<>();
+        secondPage.setData(Collections.singletonList(row2));
+        secondPage.setIsDone(true);
+
+        when(mockJob.query("SELECT ID FROM T")).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(firstPage));
+        when(mockQuery.<Object>fetchMore(anyInt())).thenReturn(CompletableFuture.completedFuture(secondPage));
+
+        MapepireStatement s = new MapepireStatement(new MapepireConnection(mockJob),
+                ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+        try (ResultSet rs = s.executeQuery("SELECT ID FROM T")) {
+            assertEquals(ResultSet.TYPE_SCROLL_INSENSITIVE, rs.getType());
+            assertEquals(ResultSet.CONCUR_UPDATABLE, rs.getConcurrency());
+            assertEquals(s, rs.getStatement());
+            assertTrue(rs.last());
+            assertEquals(2, rs.getRow());
+            assertEquals(2, rs.getInt(1));
+        }
+        assertFalse(s.getMoreResults());
+    }
+
+    @Test
+    void resultSetTypeAndConcurrencyAreValidated() throws SQLException {
+        MapepireConnection conn = new MapepireConnection(new SqlJob());
+        assertEquals(ResultSet.TYPE_FORWARD_ONLY, stmt.getResultSetType());
+        assertEquals(ResultSet.CONCUR_READ_ONLY, stmt.getResultSetConcurrency());
+        assertThrows(SQLFeatureNotSupportedException.class, () -> conn.createStatement(
+                ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_READ_ONLY));
+        assertThrows(SQLFeatureNotSupportedException.class, () -> conn.createStatement(
+                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY, ResultSet.CLOSE_CURSORS_AT_COMMIT));
+        assertThrows(SQLException.class, () -> conn.prepareStatement("SELECT 1", ResultSet.TYPE_FORWARD_ONLY, 0));
+        assertEquals(ResultSet.TYPE_SCROLL_INSENSITIVE, conn.prepareStatement("SELECT 1",
+                ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY).getResultSetType());
+    }
 }

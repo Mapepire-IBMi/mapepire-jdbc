@@ -140,6 +140,28 @@ try (Statement statement = connection.createStatement()) {
 }
 ```
 
+### Scrollable and updatable result sets
+
+Pass a result set type and concurrency when creating the statement:
+
+```java
+try (Statement statement = connection.createStatement(
+        ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+        ResultSet rs = statement.executeQuery("SELECT EMPNO, SALARY FROM SAMPLE.EMPLOYEE")) {
+    rs.last();                       // move to any row: first, last, absolute, relative, previous
+    rs.updateBigDecimal("SALARY", new BigDecimal("52000"));
+    rs.updateRow();                  // or deleteRow(), or moveToInsertRow() + insertRow()
+}
+```
+
+* A `TYPE_SCROLL_INSENSITIVE` result set fetches every row when it is created and keeps them in
+  memory, so it does not see changes others make afterwards.
+* A `CONCUR_UPDATABLE` result set writes each change as a separate `UPDATE`, `DELETE`, or `INSERT`
+  that finds the row by its primary key. The query must select from a single table that has a
+  primary key, and must select every primary key column. If the table name is unqualified, its
+  primary key is looked up in the current schema, so qualify it when using system naming or the
+  library list.
+
 ## Supported JDBC API
 
 This driver targets the core of the JDBC API needed to run queries, updates, and transactions
@@ -151,7 +173,8 @@ something from the "not yet supported" list below, please
 
 * `Statement` and `PreparedStatement`: `executeQuery`, `executeUpdate`, `execute`, parameter
   binding, fetch size, query timeout
-* Forward-only `ResultSet` reading, by column index or label
+* `ResultSet` reading by column index or label, forward-only or scrollable (`TYPE_SCROLL_INSENSITIVE`)
+* Updatable result sets (`CONCUR_UPDATABLE`): `updateXxx`, `updateRow`, `deleteRow`, `insertRow`
 * Transactions: `setAutoCommit`, `commit`, `rollback`, `setTransactionIsolation`, `setReadOnly`
 * `setSchema` / `getSchema`
 * `Connection.isValid()` for pool health checks
@@ -165,7 +188,7 @@ something from the "not yet supported" list below, please
 
 **Not yet supported** (these throw `SQLFeatureNotSupportedException`)
 
-* Scrollable or updatable `ResultSet`s
+* `TYPE_SCROLL_SENSITIVE` result sets, `refreshRow`, and stream/LOB `updateXxx` methods
 * Batch execution (`addBatch` / `executeBatch`)
 * `CallableStatement`, savepoints, generated keys
 * BLOB / CLOB / Array / Ref / RowId / SQLXML types

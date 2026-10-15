@@ -307,11 +307,12 @@ class MapepireDatabaseMetaDataTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void onlyForwardOnlyReadOnlyResultSetsAreSupported() throws SQLException {
-        assertTrue(md.supportsResultSetType(ResultSet.TYPE_FORWARD_ONLY));
-        assertFalse(md.supportsResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE));
-        assertTrue(md.supportsResultSetConcurrency(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY));
-        assertFalse(md.supportsResultSetConcurrency(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE));
+    void scrollInsensitiveAndUpdatableResultSetsAreSupported() throws SQLException {
+        assertTrue(md.supportsResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE));
+        assertFalse(md.supportsResultSetType(ResultSet.TYPE_SCROLL_SENSITIVE));
+        assertTrue(md.supportsResultSetConcurrency(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE));
+        assertTrue(md.ownDeletesAreVisible(ResultSet.TYPE_SCROLL_INSENSITIVE));
+        assertFalse(md.ownInsertsAreVisible(ResultSet.TYPE_SCROLL_INSENSITIVE));
     }
 
     @Test

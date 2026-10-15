@@ -38,6 +38,18 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
         this.sql = sql;
     }
 
+    /**
+     * Create a prepared statement whose result sets have the given type and
+     * concurrency.
+     *
+     * @see MapepireStatement#MapepireStatement(MapepireConnection, int, int)
+     */
+    public MapepirePreparedStatement(MapepireConnection connection, String sql, int resultSetType,
+            int resultSetConcurrency) throws SQLException {
+        super(connection, resultSetType, resultSetConcurrency);
+        this.sql = sql;
+    }
+
     private void setParameter(int parameterIndex, Object value) throws SQLException {
         checkClosed();
         if (parameterIndex < 1) {
@@ -66,7 +78,7 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
         Query query = null;
         try {
             query = getMapepireConnection().getJob().query(this.sql, options);
-            setExecutionState(query, resolve(query.execute(getFetchSize())));
+            setExecutionState(query, resolve(query.execute(getFetchSize())), this.sql);
             query = null;
         } catch (SQLException e) {
             throw e;
@@ -85,7 +97,7 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
     @Override
     public ResultSet executeQuery() throws SQLException {
         executeInternal();
-        return new MapepireResultSet(getResult());
+        return createResultSet();
     }
 
     @Override
