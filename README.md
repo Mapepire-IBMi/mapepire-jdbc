@@ -28,7 +28,7 @@ Add the dependency to your `pom.xml`:
 <dependency>
   <groupId>io.github.mapepire-ibmi</groupId>
   <artifactId>mapepire-jdbc</artifactId>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
 </dependency>
 ```
 
