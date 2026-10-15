@@ -4,6 +4,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Release-critical plugins: bump manually and verify the signed Central bundle
+    # (Maven 3.10 + central-publishing 0.5.0 produced an invalid bundle) before releasing.
+    ignore:
+      - dependency-name: "org.apache.maven.plugins:maven-gpg-plugin"
+      - dependency-name: "org.sonatype.central:central-publishing-maven-plugin"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `central-publishing-maven-plugin` to 0.12.0 to fix Central bundle validation on Maven 3.10 (release build only)
+
 ## [1.1.0] - 2026-10-15
 
 ### Added

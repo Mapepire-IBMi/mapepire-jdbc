@@ -79,13 +79,6 @@ jobs:
           OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Inspect Central bundle
-        if: always()
-        run: |
-          mvn -v
-          unzip -l target/central-publishing/central-bundle.zip || true
-          find target/central-staging -type f | sort || true
-
       - name: List Target Directory
         run: ls -l target
 
