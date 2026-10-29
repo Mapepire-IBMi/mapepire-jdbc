@@ -17,7 +17,7 @@ import io.github.mapepire_ibmi.types.JDBCOptions;
 
 public class MapepireDriver implements Driver {
 
-    static final int MAJOR_VERSION = 1;
+    static final int MAJOR_VERSION = 2;
     static final int MINOR_VERSION = 0;
     private static final int DEFAULT_PORT = 8076;
     private static final String URL_REGEX = "^(?i)jdbc:mapepire://(.+?)(:(\\d+))?(;.+?=.+?)*$";

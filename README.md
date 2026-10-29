@@ -28,7 +28,7 @@ Add the dependency to your `pom.xml`:
 <dependency>
   <groupId>io.github.mapepire-ibmi</groupId>
   <artifactId>mapepire-jdbc</artifactId>
-  <version>1.1.0</version>
+  <version>2.0.0</version>
 </dependency>
 ```
 
@@ -162,6 +162,38 @@ try (Statement statement = connection.createStatement(
   primary key is looked up in the current schema, so qualify it when using system naming or the
   library list.
 
+### Running a CL command
+
+CL commands are a driver extension, so unwrap the connection to `MapepireConnection` first:
+
+```java
+MapepireConnection mapepire = connection.unwrap(MapepireConnection.class);
+CLCommandResult result = mapepire.rcclCommand("CRTLIB LIB(MYLIB)");
+if (!result.getSuccess()) {
+    // The most recent escape message, e.g.
+    // "CL command execution failed: [CPF2111] Library MYLIB already exists."
+    System.err.println(result.getError());
+}
+for (CLMessage message : result.getData()) {
+    System.out.println(message.getId() + ": " + message.getText());
+}
+```
+
+There are two ways to run a command:
+
+| Method        | Runs in                                               | `getData()` contains                   |
+|---------------|-------------------------------------------------------|----------------------------------------|
+| `clCommand`   | The SQL job, through `QSYS2.QCMDEXC`                  | Job log entries written by the command |
+| `rcclCommand` | A separate remote command job (Toolbox `CommandCall`) | Messages returned by the command       |
+
+Use `clCommand` when the command must affect the SQL job itself, such as `CHGJOB` or `ADDLIBLE`.
+With a connection pool, those changes stay on the connection for whoever borrows it next.
+`rcclCommand` requires `mapepire-server` 2.5.0 or later.
+
+A failed command does not throw: check `getSuccess()`, and `getData()` still holds the messages.
+An `SQLException` is thrown only when the request itself fails, for example on a closed connection
+or a timeout.
+
 ## Supported JDBC API
 
 This driver targets the core of the JDBC API needed to run queries, updates, and transactions
@@ -185,6 +217,8 @@ something from the "not yet supported" list below, please
   version, and capability information
 * `ResultSetMetaData` from `ResultSet.getMetaData()`, and from `PreparedStatement.getMetaData()` once
   the statement has been executed (it returns `null` before execution)
+* CL commands via `MapepireConnection.clCommand` / `rcclCommand` (driver extension, see
+  [Running a CL command](#running-a-cl-command))
 
 **Not yet supported** (these throw `SQLFeatureNotSupportedException`)
 

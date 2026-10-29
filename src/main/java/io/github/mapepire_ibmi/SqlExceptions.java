@@ -12,9 +12,13 @@ final class SqlExceptions {
      * Converts an exception raised while waiting on a CompletableFuture into a
      * SQLException, preserving the sqlState/error of the underlying failure
      * instead of discarding it behind a generic ExecutionException/
-     * CompletionException wrapper.
+     * CompletionException wrapper. Restores the thread's interrupt flag if the
+     * wait was interrupted.
      */
     static SQLException toSqlException(Exception e) {
+        if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+        }
         Throwable cause = e;
         while (cause.getCause() != null
                 && (cause instanceof ExecutionException || cause instanceof CompletionException)) {
