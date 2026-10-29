@@ -95,8 +95,8 @@ class MapepireDriverTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void majorVersionIsOne() {
-        assertEquals(1, driver.getMajorVersion());
+    void majorVersionIsTwo() {
+        assertEquals(2, driver.getMajorVersion());
     }
 
     @Test

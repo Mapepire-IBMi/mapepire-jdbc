@@ -2,6 +2,7 @@ package io.github.mapepire_ibmi;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -22,7 +23,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.github.mapepire_ibmi.types.CLCommandResult;
+import io.github.mapepire_ibmi.types.CLMessage;
+import io.github.mapepire_ibmi.types.JobStatus;
 import io.github.mapepire_ibmi.types.QueryResult;
+import io.github.mapepire_ibmi.types.SqlCLCommandResult;
 
 @ExtendWith(MockitoExtension.class)
 @SuppressWarnings("unchecked")
@@ -176,5 +181,55 @@ class MapepireConnectionTest {
             SQLException thrown = assertThrows(SQLException.class, c::commit);
             assertEquals("40001", thrown.getSQLState());
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // clCommand / rcclCommand against a mocked SqlJob
+    // -------------------------------------------------------------------------
+
+    @Test
+    void clCommandReturnsServerResult() throws Exception {
+        SqlCLCommandResult result = new SqlCLCommandResult("cl1", true, null, null, null, 5,
+                Collections.singletonList(clMessage("CPC2102", "Library MYLIB created.")));
+        when(mockJob.clCommand("CRTLIB MYLIB")).thenReturn(CompletableFuture.completedFuture(result));
+
+        try (MapepireConnection c = new MapepireConnection(mockJob)) {
+            assertSame(result, c.clCommand("CRTLIB MYLIB"));
+        }
+    }
+
+    @Test
+    void rcclCommandFailureWithoutMessagesReturnsEmptyData() throws Exception {
+        CLCommandResult result = new CLCommandResult("rccl1", false, "Server error", 5, null);
+        when(mockJob.rcclCommand("CRTLIB MYLIB")).thenReturn(CompletableFuture.completedFuture(result));
+
+        try (MapepireConnection c = new MapepireConnection(mockJob)) {
+            CLCommandResult returned = c.rcclCommand("CRTLIB MYLIB");
+            assertFalse(returned.getSuccess());
+            assertTrue(returned.getData().isEmpty());
+        }
+    }
+
+    @Test
+    void clCommandOnClosedConnectionThrows() throws Exception {
+        when(mockJob.getStatus()).thenReturn(JobStatus.Ended);
+
+        try (MapepireConnection c = new MapepireConnection(mockJob)) {
+            SQLException thrown = assertThrows(SQLException.class, () -> c.clCommand("CRTLIB MYLIB"));
+            assertEquals("Connection is closed", thrown.getMessage());
+        }
+    }
+
+    @Test
+    void unwrapReturnsTheConnectionItself() throws SQLException {
+        assertTrue(connection.isWrapperFor(MapepireConnection.class));
+        assertSame(connection, connection.unwrap(MapepireConnection.class));
+    }
+
+    private static CLMessage clMessage(String id, String text) {
+        CLMessage message = new CLMessage();
+        message.setId(id);
+        message.setText(text);
+        return message;
     }
 }

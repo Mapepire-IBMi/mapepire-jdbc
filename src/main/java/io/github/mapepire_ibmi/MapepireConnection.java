@@ -16,15 +16,19 @@ import java.sql.SQLXML;
 import java.sql.Savepoint;
 import java.sql.Statement;
 import java.sql.Struct;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import io.github.mapepire_ibmi.types.CLCommandResult;
 import io.github.mapepire_ibmi.types.JobStatus;
 import io.github.mapepire_ibmi.types.QueryResult;
+import io.github.mapepire_ibmi.types.SqlCLCommandResult;
 
 public class MapepireConnection implements Connection {
     private final SqlJob job;
@@ -92,8 +96,66 @@ public class MapepireConnection implements Connection {
         }
     }
 
+    /**
+     * Run a CL command in the SQL job through {@code QSYS2.QCMDEXC}.
+     * <p>
+     * A failed command does not throw: check {@code getSuccess()} on the result.
+     * {@code getData()} holds the job log entries written by the command, even
+     * when it fails.
+     *
+     * @param cmd The CL command to run.
+     * @return The command's result.
+     * @throws SQLException If the connection is closed or the request cannot be
+     *                      completed.
+     */
+    public SqlCLCommandResult clCommand(String cmd) throws SQLException {
+        return runClCommand(cmd, () -> this.job.clCommand(cmd));
+    }
+
+    /**
+     * Run a CL command in the server's remote command job (Toolbox
+     * {@code CommandCall}) instead of the SQL job. Requires mapepire-server
+     * 2.5.0 or later.
+     * <p>
+     * A failed command does not throw: check {@code getSuccess()} on the result.
+     * {@code getData()} holds the messages returned by the command, even when it
+     * fails.
+     *
+     * @param cmd The CL command to run.
+     * @return The command's result.
+     * @throws SQLException If the connection is closed or the request cannot be
+     *                      completed.
+     */
+    public CLCommandResult rcclCommand(String cmd) throws SQLException {
+        return runClCommand(cmd, () -> this.job.rcclCommand(cmd));
+    }
+
+    private <T extends SqlCLCommandResult> T runClCommand(String cmd, Callable<CompletableFuture<T>> request)
+            throws SQLException {
+        if (isClosed()) {
+            throw new SQLException("Connection is closed");
+        }
+        if (cmd == null || cmd.trim().isEmpty()) {
+            throw new SQLException("CL command must not be empty");
+        }
+        T result;
+        try {
+            result = resolve(request.call());
+        } catch (Exception e) {
+            throw SqlExceptions.toSqlException(e);
+        }
+        // A server that fails before running the command may send no messages.
+        if (result.getData() == null) {
+            result.setData(Collections.emptyList());
+        }
+        return result;
+    }
+
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
+        if (iface.isInstance(this)) {
+            return iface.cast(this);
+        }
         if (iface.isInstance(job)) {
             return iface.cast(job);
         }
@@ -103,7 +165,7 @@ public class MapepireConnection implements Connection {
 
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        return iface.isInstance(job);
+        return iface.isInstance(this) || iface.isInstance(job);
     }
 
     @Override

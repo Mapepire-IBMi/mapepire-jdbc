@@ -7,9 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-29
+
+This release moves to `mapepire-sdk` 2.0.0, which has breaking API changes. Code that uses only
+the standard JDBC API is unaffected. Code that calls the SDK through `getJob()` or
+`unwrap(SqlJob.class)` may need changes; see Dependencies below.
+
+### Added
+
+- `MapepireConnection.rcclCommand(cmd)` runs a CL command in the server's remote command job
+  (`rccl`, requires `mapepire-server` 2.5.0+) and returns the messages it produced
+- `MapepireConnection.clCommand(cmd)` runs a CL command in the SQL job (`cl`) and returns its job
+  log entries
+- `Connection.unwrap(MapepireConnection.class)` now returns the connection itself
+
 ### Changed
 
 - Bump `central-publishing-maven-plugin` to 0.12.0 to fix Central bundle validation on Maven 3.10 (release build only)
+
+### Dependencies
+
+- Bump `mapepire-sdk` from 1.0.0 to 2.0.0. Code that calls the SDK directly through `getJob()` or
+  `unwrap(SqlJob.class)` may need changes: `SqlJob.clCommand()` now returns a
+  `CompletableFuture<SqlCLCommandResult>` instead of a `Query`, `QueryOptions` no longer has
+  `isClCommand`, and `ServerResponse.getSqlRc()` returns a nullable `Integer`
+- Remove the `jackson-databind` 2.18.11 pin, which was now forcing Jackson below the version
+  `mapepire-sdk` needs. Jackson now follows `mapepire-sdk` (2.22.3)
 
 ## [1.1.0] - 2026-10-15
 
