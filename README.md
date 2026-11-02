@@ -210,6 +210,11 @@ something from the "not yet supported" list below, please
 * Transactions: `setAutoCommit`, `commit`, `rollback`, `setTransactionIsolation`, `setReadOnly`
 * `setSchema` / `getSchema`
 * `Connection.isValid()` for pool health checks
+* Batch execution (`addBatch` / `executeBatch` / `executeLargeBatch`). A `PreparedStatement` batch
+  is sent to the server up to 1000 rows per request, and each row's update count is
+  `SUCCESS_NO_INFO` because the server reports only a total. A `Statement` batch runs each SQL
+  statement in its own request. Execution stops at the first failure with a
+  `BatchUpdateException`
 * Query and network timeouts
 * `getWarnings` / `clearWarnings` (the driver never raises SQL warnings, so these always return `null`)
 * `DatabaseMetaData`: tables, columns, schemas, primary/foreign keys, indexes, procedures, functions,
@@ -223,7 +228,6 @@ something from the "not yet supported" list below, please
 **Not yet supported** (these throw `SQLFeatureNotSupportedException`)
 
 * `TYPE_SCROLL_SENSITIVE` result sets, `refreshRow`, and stream/LOB `updateXxx` methods
-* Batch execution (`addBatch` / `executeBatch`)
 * `CallableStatement`, savepoints, generated keys
 * BLOB / CLOB / Array / Ref / RowId / SQLXML types
 

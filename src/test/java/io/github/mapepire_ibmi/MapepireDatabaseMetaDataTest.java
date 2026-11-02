@@ -327,7 +327,7 @@ class MapepireDatabaseMetaDataTest {
         assertTrue(md.supportsTransactionIsolationLevel(Connection.TRANSACTION_SERIALIZABLE));
         assertTrue(md.supportsTransactionIsolationLevel(Connection.TRANSACTION_NONE));
         assertFalse(md.supportsTransactionIsolationLevel(99));
-        assertFalse(md.supportsBatchUpdates());
+        assertTrue(md.supportsBatchUpdates());
         assertFalse(md.supportsSavepoints());
     }
 

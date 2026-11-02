@@ -1252,7 +1252,7 @@ public class MapepireDatabaseMetaData implements DatabaseMetaData {
 
     @Override
     public boolean supportsBatchUpdates() throws SQLException {
-        return false;
+        return true;
     }
 
     @Override

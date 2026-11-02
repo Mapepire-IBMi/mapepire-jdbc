@@ -1,5 +1,6 @@
 package io.github.mapepire_ibmi;
 
+import java.sql.BatchUpdateException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -7,13 +8,13 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import io.github.mapepire_ibmi.types.QueryResult;
-import io.github.mapepire_ibmi.types.QueryState;
 
 public class MapepireStatement implements Statement {
     protected static final int DEFAULT_FETCH_SIZE = 100;
@@ -27,6 +28,7 @@ public class MapepireStatement implements Statement {
     private int fetchSize = DEFAULT_FETCH_SIZE;
     private int queryTimeoutSeconds;
     private boolean closed;
+    private final List<String> batchSqls = new ArrayList<>();
 
     public MapepireStatement(MapepireConnection connection) {
         this.connection = connection;
@@ -89,7 +91,10 @@ public class MapepireStatement implements Statement {
     }
 
     protected void setExecutionState(Query query, QueryResult<Object> result, String sql) throws SQLException {
-        if (this.query != null && this.query.getState() != QueryState.RUN_DONE) {
+        // The server keeps a statement open until it is closed, even once every row
+        // has been read, so the previous query is always closed. Closing a query
+        // twice is a no-op.
+        if (this.query != null) {
             try {
                 this.connection.resolve(this.query.close());
             } catch (Exception e) {
@@ -149,6 +154,15 @@ public class MapepireStatement implements Statement {
      * connection via {@link MapepireConnection#abortAfterNetworkTimeout()}.
      */
     protected <T> T resolve(CompletableFuture<T> future) throws Exception {
+        return resolve(future, this.query);
+    }
+
+    /**
+     * Like {@link #resolve(CompletableFuture)}, but a query timeout closes
+     * {@code running}, the query the future belongs to. Executions pass their new
+     * query here, since the current query is still the previous execution's.
+     */
+    protected <T> T resolve(CompletableFuture<T> future, Query running) throws Exception {
         long queryMillis = this.queryTimeoutSeconds > 0 ? TimeUnit.SECONDS.toMillis(this.queryTimeoutSeconds) : 0;
         long networkMillis = this.connection.getNetworkTimeout();
 
@@ -173,9 +187,9 @@ public class MapepireStatement implements Statement {
                     && (queryMillis <= 0 || networkMillis <= queryMillis);
             if (networkTimedOut) {
                 this.connection.abortAfterNetworkTimeout();
-            } else if (this.query != null) {
+            } else if (running != null) {
                 try {
-                    this.query.close();
+                    running.close();
                 } catch (Exception ignored) {
                 }
             }
@@ -203,7 +217,7 @@ public class MapepireStatement implements Statement {
         Query newQuery = null;
         try {
             newQuery = this.connection.getJob().query(sql);
-            setExecutionState(newQuery, resolve(newQuery.execute(this.fetchSize)), sql);
+            setExecutionState(newQuery, resolve(newQuery.execute(this.fetchSize), newQuery), sql);
             newQuery = null;
             return createResultSet();
         } catch (SQLException e) {
@@ -226,7 +240,7 @@ public class MapepireStatement implements Statement {
         Query newQuery = null;
         try {
             newQuery = this.connection.getJob().query(sql);
-            setExecutionState(newQuery, resolve(newQuery.execute(this.fetchSize)), sql);
+            setExecutionState(newQuery, resolve(newQuery.execute(this.fetchSize), newQuery), sql);
             newQuery = null;
             return this.result.getUpdateCount();
         } catch (SQLException e) {
@@ -336,7 +350,7 @@ public class MapepireStatement implements Statement {
         Query newQuery = null;
         try {
             newQuery = this.connection.getJob().query(sql);
-            setExecutionState(newQuery, resolve(newQuery.execute(this.fetchSize)), sql);
+            setExecutionState(newQuery, resolve(newQuery.execute(this.fetchSize), newQuery), sql);
             newQuery = null;
             return result.getHasResults();
         } catch (SQLException e) {
@@ -433,20 +447,71 @@ public class MapepireStatement implements Statement {
 
     @Override
     public void addBatch(String sql) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'addBatch'");
+        checkClosed();
+        if (sql == null) {
+            throw new SQLException("SQL must not be null");
+        }
+        this.batchSqls.add(sql);
     }
 
     @Override
     public void clearBatch() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'clearBatch'");
+        checkClosed();
+        this.batchSqls.clear();
+    }
+
+    /**
+     * Execute the batched statements one after another, each in its own request.
+     * The batch is emptied afterwards, whether or not it succeeded.
+     *
+     * @throws BatchUpdateException If a statement fails or returns a result set.
+     *                              Execution stops there and the update counts of
+     *                              the statements that succeeded are available
+     *                              from the exception.
+     */
+    @Override
+    public int[] executeBatch() throws SQLException {
+        checkClosed();
+        List<String> batch = new ArrayList<>(this.batchSqls);
+        this.batchSqls.clear();
+
+        int[] counts = new int[batch.size()];
+        for (int i = 0; i < counts.length; i++) {
+            try {
+                execute(batch.get(i));
+                checkBatchResult();
+                // A count the server does not know is reported as JDBC requires
+                int count = this.result.getUpdateCount();
+                counts[i] = count < 0 ? SUCCESS_NO_INFO : count;
+            } catch (SQLException e) {
+                throw toBatchUpdateException(e, counts, i);
+            }
+        }
+        return counts;
     }
 
     @Override
-    public int[] executeBatch() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'executeBatch'");
+    public long[] executeLargeBatch() throws SQLException {
+        return Arrays.stream(executeBatch()).asLongStream().toArray();
+    }
+
+    /**
+     * Fail the batch execution that just ran if it returned a result set, which
+     * JDBC does not allow.
+     */
+    protected void checkBatchResult() throws SQLException {
+        if (this.result.getHasResults()) {
+            throw new SQLException("A batch entry must not return a result set");
+        }
+    }
+
+    /**
+     * Wrap a failure at the given batch position, reporting only the counts of
+     * the entries that completed before it.
+     */
+    static BatchUpdateException toBatchUpdateException(SQLException cause, int[] counts, int failedIndex) {
+        return new BatchUpdateException(cause.getMessage(), cause.getSQLState(), cause.getErrorCode(),
+                Arrays.copyOf(counts, failedIndex), cause);
     }
 
     @Override

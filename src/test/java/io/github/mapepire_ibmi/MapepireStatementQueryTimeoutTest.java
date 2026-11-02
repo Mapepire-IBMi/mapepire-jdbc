@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -86,5 +87,23 @@ class MapepireStatementQueryTimeoutTest {
         assertInstanceOf(TimeoutException.class, e.getCause());
 
         verify(job, never()).close();
+    }
+
+    @Test
+    void queryTimeoutClosesTheQueryThatTimedOutNotThePreviousOne() throws Exception {
+        SqlJob job = mock(SqlJob.class);
+        Query previous = mock(Query.class);
+        Query hung = mock(Query.class);
+        when(job.query(anyString())).thenReturn(previous, hung);
+        when(previous.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(new QueryResult<>()));
+        when(hung.<Object>execute(anyInt())).thenReturn(new CompletableFuture<>());
+
+        MapepireStatement stmt = new MapepireStatement(new MapepireConnection(job));
+        stmt.executeUpdate("INSERT INTO T VALUES (1)");
+        stmt.setQueryTimeout(1);
+        assertThrows(SQLException.class, () -> stmt.executeUpdate("INSERT INTO T VALUES (2)"));
+
+        verify(previous, never()).close();
+        verify(hung, atLeastOnce()).close();
     }
 }

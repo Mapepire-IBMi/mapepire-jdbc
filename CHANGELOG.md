@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Batch execution: `addBatch`, `clearBatch`, `executeBatch` and `executeLargeBatch` on `Statement`
+  and `PreparedStatement`. A `PreparedStatement` batch is sent as a server-side JDBC batch of up
+  to 1000 rows per request instead of one request per row; each row's update count is
+  `SUCCESS_NO_INFO`, since the server reports only a total. A `Statement` batch runs each
+  statement in its own request. The first failure stops the batch with a `BatchUpdateException`
+  that carries the update counts of the entries that succeeded.
+  `DatabaseMetaData.supportsBatchUpdates()` now returns `true`
+
+### Fixed
+
+- Re-executing a statement now closes the previous query on the server even when all of its rows
+  had been read, so repeated executions no longer leave statements open
+- A query timeout during execution no longer closes the statement's previous query instead of the
+  one that timed out
+
 ## [2.0.0] - 2026-10-29
 
 This release moves to `mapepire-sdk` 2.0.0, which has breaking API changes. Code that uses only
