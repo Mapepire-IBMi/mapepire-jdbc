@@ -1,5 +1,6 @@
 package io.github.mapepire_ibmi;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -7,11 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.sql.BatchUpdateException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -20,6 +24,7 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Types;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -149,7 +154,90 @@ class MapepirePreparedStatementTest {
 
     @Test
     void unimplementedMethodsThrowSQLFeatureNotSupportedException() {
-        assertThrows(SQLFeatureNotSupportedException.class, () -> ps.addBatch());
+        assertThrows(SQLFeatureNotSupportedException.class, () -> ps.setBytes(1, new byte[0]));
+    }
+
+    // -------------------------------------------------------------------------
+    // addBatch / clearBatch / executeBatch
+    // -------------------------------------------------------------------------
+
+    @Test
+    void executeBatchSendsAllRowsInOneRequestKeepingBoundParametersAndEmptiesBatch() throws Exception {
+        MapepirePreparedStatement mockedPs = preparedStatementWithMockJob("INSERT INTO T VALUES (?, ?)");
+        QueryResult<Object> two = new QueryResult<>();
+        two.setUpdateCount(2);
+        when(mockJob.query(anyString(), any(QueryOptions.class))).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(two));
+
+        mockedPs.setString(1, "X");
+        mockedPs.setInt(2, 0);
+        mockedPs.addBatch();
+        mockedPs.clearBatch();
+        // Parameter 1 stays bound for every row; parameter 2 is a buffer reused for each row
+        mockedPs.setString(1, "fixed");
+        byte[] buffer = new byte[1];
+        for (byte i = 1; i <= 2; i++) {
+            buffer[0] = i;
+            mockedPs.setObject(2, buffer);
+            mockedPs.addBatch();
+        }
+
+        // The server only reports the total for the batch
+        assertArrayEquals(new int[] { PreparedStatement.SUCCESS_NO_INFO, PreparedStatement.SUCCESS_NO_INFO },
+                mockedPs.executeBatch());
+        assertEquals(0, mockedPs.executeBatch().length);
+
+        ArgumentCaptor<QueryOptions> captor = ArgumentCaptor.forClass(QueryOptions.class);
+        verify(mockJob).query(anyString(), captor.capture());
+        List<Object> rows = captor.getValue().getParameters();
+        assertEquals(2, rows.size());
+        for (int i = 0; i < 2; i++) {
+            List<?> row = (List<?>) rows.get(i);
+            assertEquals("fixed", row.get(0));
+            assertArrayEquals(new byte[] { (byte) (i + 1) }, (byte[]) row.get(1));
+        }
+    }
+
+    @Test
+    void executeBatchSendsRowsInChunksAndStopsAtFailedChunk() throws Exception {
+        MapepirePreparedStatement mockedPs = preparedStatementWithMockJob("INSERT INTO T VALUES (?)");
+        CompletableFuture<QueryResult<Object>> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new SQLException("Duplicate key", "23505"));
+        when(mockJob.query(anyString(), any(QueryOptions.class))).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(new QueryResult<>()), failed);
+
+        int size = MapepirePreparedStatement.BATCH_CHUNK_SIZE;
+        for (int i = 0; i < size + 2; i++) {
+            mockedPs.setInt(1, i);
+            mockedPs.addBatch();
+        }
+
+        BatchUpdateException e = assertThrows(BatchUpdateException.class, mockedPs::executeBatch);
+        assertEquals("23505", e.getSQLState());
+        int[] expected = new int[size];
+        Arrays.fill(expected, PreparedStatement.SUCCESS_NO_INFO);
+        assertArrayEquals(expected, e.getUpdateCounts());
+
+        ArgumentCaptor<QueryOptions> captor = ArgumentCaptor.forClass(QueryOptions.class);
+        verify(mockJob, times(2)).query(anyString(), captor.capture());
+        assertEquals(size, captor.getAllValues().get(0).getParameters().size());
+        assertEquals(Arrays.asList(Arrays.asList(size), Arrays.asList(size + 1)),
+                captor.getAllValues().get(1).getParameters());
+    }
+
+    @Test
+    void addBatchValidatesParametersAndStatementState() throws SQLException {
+        // Parameter 1 is missing
+        ps.setInt(2, 42);
+        assertTrue(assertThrows(SQLException.class, () -> ps.addBatch()).getMessage()
+                .contains("Parameter 1 is not set"));
+        assertThrows(SQLException.class, () -> ps.addBatch("DELETE FROM T"));
+
+        ps.close();
+        assertThrows(SQLException.class, () -> ps.addBatch());
+        assertThrows(SQLException.class, () -> ps.clearBatch());
+        assertThrows(SQLException.class, () -> ps.executeBatch());
     }
 
     // -------------------------------------------------------------------------

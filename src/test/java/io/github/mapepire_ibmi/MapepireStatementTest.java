@@ -1,19 +1,23 @@
 package io.github.mapepire_ibmi;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.sql.BatchUpdateException;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.sql.Statement;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -158,6 +162,67 @@ class MapepireStatementTest {
     @Test
     void unimplementedMethodsThrowSQLFeatureNotSupportedException() {
         assertThrows(SQLFeatureNotSupportedException.class, () -> stmt.cancel());
+    }
+
+    // -------------------------------------------------------------------------
+    // addBatch / clearBatch / executeBatch
+    // -------------------------------------------------------------------------
+
+    @Test
+    void executeBatchReturnsCountsInOrderClosesFinishedQueriesAndEmptiesBatch() throws Exception {
+        QueryResult<Object> one = new QueryResult<>();
+        one.setUpdateCount(1);
+        QueryResult<Object> unknown = new QueryResult<>();
+        unknown.setUpdateCount(-1);
+        Query second = mock(Query.class);
+        when(mockJob.query(anyString())).thenReturn(mockQuery, second);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(one));
+        when(second.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(unknown));
+
+        MapepireStatement s = new MapepireStatement(new MapepireConnection(mockJob));
+        s.addBatch("INSERT INTO T VALUES (1)");
+        s.addBatch("INSERT INTO T VALUES (2)");
+        s.addBatch("INSERT INTO T VALUES (3)");
+        s.clearBatch();
+        s.addBatch("INSERT INTO T VALUES (1)");
+        s.addBatch("CREATE INDEX I ON T (C)");
+
+        assertArrayEquals(new long[] { 1, Statement.SUCCESS_NO_INFO }, s.executeLargeBatch());
+        assertEquals(0, s.executeBatch().length);
+        verify(mockJob, times(2)).query(anyString());
+        // The server holds a finished statement until it is closed
+        verify(mockQuery).close();
+    }
+
+    @Test
+    void executeBatchStopsAtEntryReturningResultSetAndReportsCountsSoFar() throws Exception {
+        QueryResult<Object> one = new QueryResult<>();
+        one.setUpdateCount(1);
+        QueryResult<Object> rows = new QueryResult<>();
+        rows.setHasResults(true);
+        when(mockJob.query(anyString())).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(one), CompletableFuture.completedFuture(rows));
+
+        MapepireStatement s = new MapepireStatement(new MapepireConnection(mockJob));
+        s.addBatch("INSERT INTO T VALUES (1)");
+        s.addBatch("SELECT * FROM T");
+        s.addBatch("INSERT INTO T VALUES (2)");
+
+        BatchUpdateException e = assertThrows(BatchUpdateException.class, s::executeBatch);
+        assertTrue(e.getMessage().contains("result set"));
+        assertArrayEquals(new int[] { 1 }, e.getUpdateCounts());
+        verify(mockJob, times(2)).query(anyString());
+        assertEquals(0, s.executeBatch().length);
+    }
+
+    @Test
+    void batchRejectsNullSqlAndClosedStatement() throws SQLException {
+        assertThrows(SQLException.class, () -> stmt.addBatch(null));
+        stmt.close();
+        assertThrows(SQLException.class, () -> stmt.addBatch("DELETE FROM T"));
+        assertThrows(SQLException.class, () -> stmt.clearBatch());
+        assertThrows(SQLException.class, () -> stmt.executeBatch());
     }
 
     // -------------------------------------------------------------------------

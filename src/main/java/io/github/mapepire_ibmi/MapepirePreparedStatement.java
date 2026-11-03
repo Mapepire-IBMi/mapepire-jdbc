@@ -21,6 +21,7 @@ import java.sql.SQLXML;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.SortedMap;
@@ -30,8 +31,15 @@ import io.github.mapepire_ibmi.types.QueryOptions;
 import io.github.mapepire_ibmi.types.QueryResult;
 
 public class MapepirePreparedStatement extends MapepireStatement implements PreparedStatement {
+    /**
+     * The most parameter rows sent to the server in one batch request, which
+     * keeps the size of a single request bounded.
+     */
+    static final int BATCH_CHUNK_SIZE = 1000;
+
     private final String sql;
     private final SortedMap<Integer, Object> parameters = new TreeMap<>();
+    private final List<List<Object>> batchRows = new ArrayList<>();
 
     public MapepirePreparedStatement(MapepireConnection connection, String sql) {
         super(connection);
@@ -71,14 +79,18 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
     }
 
     private void executeInternal() throws SQLException {
+        executeInternal(getParameterList());
+    }
+
+    private void executeInternal(List<Object> parameterList) throws SQLException {
         checkClosed();
         QueryOptions options = new QueryOptions();
-        options.setParameters(getParameterList());
+        options.setParameters(parameterList);
 
         Query query = null;
         try {
             query = getMapepireConnection().getJob().query(this.sql, options);
-            setExecutionState(query, resolve(query.execute(getFetchSize())), this.sql);
+            setExecutionState(query, resolve(query.execute(getFetchSize()), query), this.sql);
             query = null;
         } catch (SQLException e) {
             throw e;
@@ -208,6 +220,12 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
     public void setObject(int parameterIndex, Object x) throws SQLException {
         if (x instanceof Date || x instanceof Time || x instanceof Timestamp) {
             setParameter(parameterIndex, x.toString());
+        } else if (x instanceof byte[]) {
+            // Copy mutable values so a buffer the caller reuses after binding, for
+            // example between addBatch calls, does not change rows already added
+            setParameter(parameterIndex, ((byte[]) x).clone());
+        } else if (x instanceof java.util.Date) {
+            setParameter(parameterIndex, ((java.util.Date) x).clone());
         } else {
             setParameter(parameterIndex, x);
         }
@@ -223,10 +241,59 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
         setObject(parameterIndex, x);
     }
 
+    /**
+     * Add the currently bound parameters to the batch as one row. The parameters
+     * stay bound, so only the values that change need to be set for the next row.
+     */
     @Override
     public void addBatch() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'addBatch'");
+        checkClosed();
+        this.batchRows.add(getParameterList());
+    }
+
+    @Override
+    public void addBatch(String sql) throws SQLException {
+        throw new SQLException("Cannot call addBatch(String) on a PreparedStatement");
+    }
+
+    @Override
+    public void clearBatch() throws SQLException {
+        checkClosed();
+        this.batchRows.clear();
+    }
+
+    /**
+     * Send the batched parameter rows to the server, up to
+     * {@value #BATCH_CHUNK_SIZE} rows per request. The server runs each request as
+     * one JDBC batch and reports only its total update count, so every row's count
+     * is {@link #SUCCESS_NO_INFO}. The batch is emptied afterwards, whether or not
+     * it succeeded.
+     *
+     * @throws java.sql.BatchUpdateException If a request fails. Its update counts
+     *                                        cover the rows of the requests that
+     *                                        succeeded before it; rows of the
+     *                                        failed request may or may not have
+     *                                        been applied.
+     */
+    @Override
+    public int[] executeBatch() throws SQLException {
+        checkClosed();
+        List<List<Object>> rows = new ArrayList<>(this.batchRows);
+        this.batchRows.clear();
+
+        int[] counts = new int[rows.size()];
+        for (int start = 0; start < counts.length; start += BATCH_CHUNK_SIZE) {
+            int end = Math.min(start + BATCH_CHUNK_SIZE, counts.length);
+            try {
+                // A list of parameter lists makes the server run them as a batch
+                executeInternal(new ArrayList<Object>(rows.subList(start, end)));
+                checkBatchResult();
+            } catch (SQLException e) {
+                throw toBatchUpdateException(e, counts, start);
+            }
+            Arrays.fill(counts, start, end, SUCCESS_NO_INFO);
+        }
+        return counts;
     }
 
     @Override
