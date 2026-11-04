@@ -183,6 +183,40 @@ class MapepireConnectionTest {
         }
     }
 
+    @Test
+    void isReadOnlyDefaultsToFalse() throws SQLException {
+        assertFalse(connection.isReadOnly());
+    }
+
+    @Test
+    void setReadOnlyIssuesSqlAndIsTracked() throws Exception {
+        when(mockJob.<Object>execute("SET TRANSACTION READ ONLY")).thenReturn(CompletableFuture.completedFuture(null));
+        when(mockJob.<Object>execute("SET TRANSACTION READ WRITE")).thenReturn(CompletableFuture.completedFuture(null));
+
+        try (MapepireConnection c = new MapepireConnection(mockJob)) {
+            c.setReadOnly(true);
+            assertTrue(c.isReadOnly());
+
+            c.setReadOnly(false);
+            assertFalse(c.isReadOnly());
+        }
+
+        verify(mockJob).execute("SET TRANSACTION READ ONLY");
+        verify(mockJob).execute("SET TRANSACTION READ WRITE");
+    }
+
+    @Test
+    void setReadOnlyFailureLeavesStateUnchanged() throws Exception {
+        CompletableFuture<QueryResult<Object>> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new SQLException("Not allowed", "42501"));
+        when(mockJob.<Object>execute("SET TRANSACTION READ ONLY")).thenReturn(failed);
+
+        try (MapepireConnection c = new MapepireConnection(mockJob)) {
+            assertThrows(SQLException.class, () -> c.setReadOnly(true));
+            assertFalse(c.isReadOnly());
+        }
+    }
+
     // -------------------------------------------------------------------------
     // clCommand / rcclCommand against a mocked SqlJob
     // -------------------------------------------------------------------------
