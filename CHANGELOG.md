@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   had been read, so repeated executions no longer leave statements open
 - A query timeout during execution no longer closes the statement's previous query instead of the
   one that timed out
+- `Connection.isReadOnly()` no longer throws, so connection pools like HikariCP can start
 
 ## [2.0.0] - 2026-10-29
 

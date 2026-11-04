@@ -34,6 +34,7 @@ public class MapepireConnection implements Connection {
     private final SqlJob job;
     private final String url;
     private boolean autoCommit = true;
+    private boolean readOnly;
     private int networkTimeoutMillis;
     private Executor networkTimeoutExecutor;
     private volatile boolean closedByTimeout;
@@ -257,6 +258,7 @@ public class MapepireConnection implements Connection {
         try {
             String type = readOnly ? "READ ONLY" : "READ WRITE";
             resolve(this.job.execute("SET TRANSACTION " + type));
+            this.readOnly = readOnly;
         } catch (Exception e) {
             throw SqlExceptions.toSqlException(e);
         }
@@ -264,8 +266,7 @@ public class MapepireConnection implements Connection {
 
     @Override
     public boolean isReadOnly() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'isReadOnly'");
+        return this.readOnly;
     }
 
     @Override

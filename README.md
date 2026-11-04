@@ -207,7 +207,7 @@ something from the "not yet supported" list below, please
   binding, fetch size, query timeout
 * `ResultSet` reading by column index or label, forward-only or scrollable (`TYPE_SCROLL_INSENSITIVE`)
 * Updatable result sets (`CONCUR_UPDATABLE`): `updateXxx`, `updateRow`, `deleteRow`, `insertRow`
-* Transactions: `setAutoCommit`, `commit`, `rollback`, `setTransactionIsolation`, `setReadOnly`
+* Transactions: `setAutoCommit`, `commit`, `rollback`, `setTransactionIsolation`, `setReadOnly`, `isReadOnly`
 * `setSchema` / `getSchema`
 * `Connection.isValid()` for pool health checks
 * Batch execution (`addBatch` / `executeBatch` / `executeLargeBatch`). A `PreparedStatement` batch
