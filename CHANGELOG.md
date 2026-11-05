@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that carries the update counts of the entries that succeeded.
   `DatabaseMetaData.supportsBatchUpdates()` now returns `true`
 
+### Changed
+
+- Bump Mockito 5.24.0, JaCoCo 0.8.16, Surefire 3.6.1, Enforcer 3.7.0
+
 ### Fixed
 
 - Re-executing a statement now closes the previous query on the server even when all of its rows
