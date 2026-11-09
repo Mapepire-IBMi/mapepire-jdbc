@@ -173,4 +173,27 @@ class MapepireDriverTest {
         assertTrue(p.isEmpty());
     }
 
+    @Test
+    void jdbcOptionNamesAreSpelledAsTheServerExpects() {
+        Properties p = new Properties();
+        MapepireDriver.parseUrlProperties(
+                "jdbc:mapepire://host;ACCESS=read only;Secondary url=h2;Naming=system;myOption=1", p);
+        assertEquals("read only", p.getProperty("access"));
+        assertEquals("h2", p.getProperty("secondary URL"));
+        assertEquals("system", p.getProperty("naming"));
+        assertEquals("1", p.getProperty("myOption"));
+    }
+
+    @Test
+    void accessPropertyDecidesReadOnly() {
+        Properties p = new Properties();
+        assertFalse(MapepireDriver.isReadOnlyAccess(p));
+        p.put("access", " Read Only ");
+        assertTrue(MapepireDriver.isReadOnlyAccess(p));
+        p.put("access", "read call");
+        assertTrue(MapepireDriver.isReadOnlyAccess(p));
+        p.put("access", "all");
+        assertFalse(MapepireDriver.isReadOnlyAccess(p));
+    }
+
 }

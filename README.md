@@ -140,6 +140,23 @@ try (Statement statement = connection.createStatement()) {
 }
 ```
 
+### Read-only connections
+
+Read-only mode is chosen when connecting, with the `access` property, and the server enforces it
+for the whole connection:
+
+```java
+Connection connection = DriverManager.getConnection(
+        "jdbc:mapepire://myibmi.example.com;access=read only", user, password);
+```
+
+* `read only` allows only queries (`SELECT`, `WITH`, `VALUES`). `read call` also allows `CALL`,
+  which CL commands need. `all` (the default) allows everything.
+* `isReadOnly()` reports the mode. `setReadOnly` cannot change it on an open connection: it throws
+  unless the value matches. For a HikariCP pool with `readOnly=true`, add `access=read only` too.
+* On a read-only connection `commit` and `rollback` do nothing, and `SET` statements fail, including
+  `setSchema` and `setTransactionIsolation`.
+
 ### Scrollable and updatable result sets
 
 Pass a result set type and concurrency when creating the statement:

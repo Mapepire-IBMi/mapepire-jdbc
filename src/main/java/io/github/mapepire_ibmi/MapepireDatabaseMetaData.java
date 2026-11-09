@@ -761,7 +761,7 @@ public class MapepireDatabaseMetaData implements DatabaseMetaData {
 
     @Override
     public boolean isReadOnly() throws SQLException {
-        return false;
+        return this.connection.isReadOnly();
     }
 
     @Override

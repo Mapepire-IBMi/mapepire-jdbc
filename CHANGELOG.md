@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Read-only mode now comes from the `access` connection property and is enforced by the server; `setReadOnly` no longer sends `SET TRANSACTION READ ONLY` and throws if asked to change the mode
 - Bump Mockito 5.24.0, JaCoCo 0.8.16, Surefire 3.6.1, Enforcer 3.7.0
 
 ### Fixed
@@ -28,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A query timeout during execution no longer closes the statement's previous query instead of the
   one that timed out
 - `Connection.isReadOnly()` no longer throws, so connection pools like HikariCP can start
+- JDBC options such as `naming`, `libraries` and `access` now take effect; the driver upper-cased their names, so the server ignored them
 
 ## [2.0.0] - 2026-10-29
 

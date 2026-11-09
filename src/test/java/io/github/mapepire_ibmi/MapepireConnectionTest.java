@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -189,32 +191,37 @@ class MapepireConnectionTest {
     }
 
     @Test
-    void setReadOnlyIssuesSqlAndIsTracked() throws Exception {
-        when(mockJob.<Object>execute("SET TRANSACTION READ ONLY")).thenReturn(CompletableFuture.completedFuture(null));
-        when(mockJob.<Object>execute("SET TRANSACTION READ WRITE")).thenReturn(CompletableFuture.completedFuture(null));
+    void readOnlyModeIsFixedWhenConnecting() throws Exception {
+        MapepireConnection readWrite = new MapepireConnection(mockJob, null, false);
+        readWrite.setReadOnly(false);
+        assertThrows(SQLException.class, () -> readWrite.setReadOnly(true));
+        assertFalse(readWrite.isReadOnly());
 
-        try (MapepireConnection c = new MapepireConnection(mockJob)) {
-            c.setReadOnly(true);
-            assertTrue(c.isReadOnly());
+        MapepireConnection readOnly = new MapepireConnection(mockJob, null, true);
+        readOnly.setReadOnly(true);
+        assertThrows(SQLException.class, () -> readOnly.setReadOnly(false));
+        assertTrue(readOnly.isReadOnly());
+        assertTrue(readOnly.getMetaData().isReadOnly());
 
-            c.setReadOnly(false);
-            assertFalse(c.isReadOnly());
-        }
-
-        verify(mockJob).execute("SET TRANSACTION READ ONLY");
-        verify(mockJob).execute("SET TRANSACTION READ WRITE");
+        verify(mockJob, never()).execute(anyString());
     }
 
     @Test
-    void setReadOnlyFailureLeavesStateUnchanged() throws Exception {
-        CompletableFuture<QueryResult<Object>> failed = new CompletableFuture<>();
-        failed.completeExceptionally(new SQLException("Not allowed", "42501"));
-        when(mockJob.<Object>execute("SET TRANSACTION READ ONLY")).thenReturn(failed);
+    void readOnlyMethodsThrowOnClosedConnection() {
+        when(mockJob.getStatus()).thenReturn(JobStatus.Ended);
+        MapepireConnection c = new MapepireConnection(mockJob);
 
-        try (MapepireConnection c = new MapepireConnection(mockJob)) {
-            assertThrows(SQLException.class, () -> c.setReadOnly(true));
-            assertFalse(c.isReadOnly());
-        }
+        assertThrows(SQLException.class, () -> c.setReadOnly(false));
+        assertThrows(SQLException.class, c::isReadOnly);
+    }
+
+    @Test
+    void commitAndRollbackSendNothingOnReadOnlyConnection() throws Exception {
+        MapepireConnection c = new MapepireConnection(mockJob, null, true);
+        c.commit();
+        c.rollback();
+
+        verify(mockJob, never()).execute(anyString());
     }
 
     // -------------------------------------------------------------------------
