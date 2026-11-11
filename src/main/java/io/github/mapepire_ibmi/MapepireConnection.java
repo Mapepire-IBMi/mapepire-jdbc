@@ -34,7 +34,7 @@ public class MapepireConnection implements Connection {
     private final SqlJob job;
     private final String url;
     private boolean autoCommit = true;
-    private boolean readOnly;
+    private final boolean readOnly;
     private int networkTimeoutMillis;
     private Executor networkTimeoutExecutor;
     private volatile boolean closedByTimeout;
@@ -52,8 +52,22 @@ public class MapepireConnection implements Connection {
      *            contain credentials. May be null.
      */
     public MapepireConnection(SqlJob job, String url) {
+        this(job, url, false);
+    }
+
+    /**
+     * Create a connection over the given job.
+     *
+     * @param job      The connected SQL job.
+     * @param url      The URL reported by {@link DatabaseMetaData#getURL()}. Must
+     *                 not contain credentials. May be null.
+     * @param readOnly Whether the job was connected with the {@code access} JDBC
+     *                 option set to {@code read only} or {@code read call}.
+     */
+    public MapepireConnection(SqlJob job, String url, boolean readOnly) {
         this.job = job;
         this.url = url;
+        this.readOnly = readOnly;
     }
 
     public SqlJob getJob() {
@@ -214,8 +228,16 @@ public class MapepireConnection implements Connection {
         return this.autoCommit;
     }
 
+    /**
+     * Commit the current transaction. Does nothing on a read-only connection,
+     * which has no changes to commit and whose server connection rejects
+     * {@code COMMIT}.
+     */
     @Override
     public void commit() throws SQLException {
+        if (this.readOnly) {
+            return;
+        }
         try {
             resolve(this.job.execute("COMMIT"));
         } catch (Exception e) {
@@ -223,8 +245,16 @@ public class MapepireConnection implements Connection {
         }
     }
 
+    /**
+     * Roll back the current transaction. Does nothing on a read-only
+     * connection, which has no changes to undo and whose server connection
+     * rejects {@code ROLLBACK}.
+     */
     @Override
     public void rollback() throws SQLException {
+        if (this.readOnly) {
+            return;
+        }
         try {
             resolve(this.job.execute("ROLLBACK"));
         } catch (Exception e) {
@@ -253,19 +283,32 @@ public class MapepireConnection implements Connection {
         return this.metaData;
     }
 
+    /**
+     * Read-only mode is chosen when connecting, with the {@code access}
+     * connection property set to {@code read only} or {@code read call}, and the
+     * server enforces it for the life of the connection. It cannot be changed on
+     * an open connection.
+     *
+     * @throws SQLException If {@code readOnly} differs from the mode the
+     *                      connection was opened with, or the connection is
+     *                      closed.
+     */
     @Override
     public void setReadOnly(boolean readOnly) throws SQLException {
-        try {
-            String type = readOnly ? "READ ONLY" : "READ WRITE";
-            resolve(this.job.execute("SET TRANSACTION " + type));
-            this.readOnly = readOnly;
-        } catch (Exception e) {
-            throw SqlExceptions.toSqlException(e);
+        if (isClosed()) {
+            throw new SQLException("Connection is closed");
+        }
+        if (readOnly != this.readOnly) {
+            throw new SQLException("Read-only mode cannot be changed on an open connection; connect with the "
+                    + "access property set to \"" + (readOnly ? "read only" : "all") + "\" instead");
         }
     }
 
     @Override
     public boolean isReadOnly() throws SQLException {
+        if (isClosed()) {
+            throw new SQLException("Connection is closed");
+        }
         return this.readOnly;
     }
 

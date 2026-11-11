@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 
 import io.github.mapepire_ibmi.types.DaemonServer;
 import io.github.mapepire_ibmi.types.JDBCOptions;
+import io.github.mapepire_ibmi.types.jdbcOptions.Option;
 
 public class MapepireDriver implements Driver {
 
@@ -47,7 +48,7 @@ public class MapepireDriver implements Driver {
             final Properties p = new Properties();
             for (Object prop : Collections.list(info.propertyNames())) {
                 if (prop instanceof CharSequence) {
-                    p.put(prop.toString().toUpperCase(), info.get(prop));
+                    p.put(normalizeKey(prop.toString()), info.get(prop));
                 } else {
                     p.put(prop, info.get(prop));
                 }
@@ -101,9 +102,49 @@ public class MapepireDriver implements Driver {
             job.connect(server).get();
             // Only host and port: the original URL may carry a password property.
             String connectionUrl = "jdbc:mapepire://" + server.getHost() + ":" + server.getPort();
-            return new MapepireConnection(job, connectionUrl);
+            return new MapepireConnection(job, connectionUrl, isReadOnlyAccess(p));
         } catch (Exception e) {
             throw SqlExceptions.toSqlException(e);
+        }
+    }
+
+    /**
+     * Whether the normalized connection properties open a read-only connection:
+     * the {@code access} JDBC option set to {@code read only} or
+     * {@code read call}.
+     */
+    static boolean isReadOnlyAccess(Properties props) {
+        Object access = props.get(Option.ACCESS.getValue());
+        if (access == null) {
+            return false;
+        }
+        String value = access.toString().trim();
+        return value.equalsIgnoreCase("read only") || value.equalsIgnoreCase("read call");
+    }
+
+    /**
+     * The name to store a connection property under. The driver's own
+     * properties are upper case. A JDBC option is spelled exactly as the server
+     * expects, since it ignores a name in any other case. Other names are kept
+     * as given.
+     */
+    static String normalizeKey(String key) {
+        String trimmed = key.trim();
+        String upper = trimmed.toUpperCase(Locale.ROOT);
+        switch (upper) {
+            case HOST:
+            case USER:
+            case PASSWORD:
+            case PORT:
+            case REJECT_UNAUTHORIZED:
+                return upper;
+            default:
+                for (Option option : Option.values()) {
+                    if (option.getValue().equalsIgnoreCase(trimmed)) {
+                        return option.getValue();
+                    }
+                }
+                return trimmed;
         }
     }
 
@@ -122,11 +163,11 @@ public class MapepireDriver implements Driver {
         for (String segment : tail.split(";", -1)) {
             int eq = segment.indexOf('=');
             if (eq > 0) {
-                String key = segment.substring(0, eq).trim().toUpperCase(Locale.ROOT);
+                String key = normalizeKey(segment.substring(0, eq));
                 String value = segment.substring(eq + 1);
                 props.put(key, value);
             } else if (!segment.trim().isEmpty()) {
-                props.put(segment.trim().toUpperCase(Locale.ROOT), "");
+                props.put(normalizeKey(segment), "");
             }
         }
     }
