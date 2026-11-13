@@ -179,6 +179,47 @@ try (Statement statement = connection.createStatement(
   primary key is looked up in the current schema, so qualify it when using system naming or the
   library list.
 
+### Binary and large object values
+
+Read `BINARY`, `VARBINARY`, `FOR BIT DATA` and `BLOB` columns with `getBytes`, `getBinaryStream`
+or `getBlob`, and set them with `setBytes`, `setBinaryStream` or `setBlob`. `CLOB`, `DBCLOB` and
+`NCLOB` columns are text: use `getString`, `getCharacterStream` or `getClob`, and `setString`,
+`setCharacterStream` or `setClob`.
+
+```java
+try (PreparedStatement insert = connection.prepareStatement(
+        "INSERT INTO MYLIB.DOCUMENTS (ID, CONTENT, NOTES) VALUES (?, ?, ?)")) {
+    insert.setInt(1, 1);
+    insert.setBinaryStream(2, Files.newInputStream(Paths.get("report.pdf")));
+    insert.setString(3, "Quarterly report");
+    insert.executeUpdate();
+}
+
+try (PreparedStatement select = connection.prepareStatement(
+        "SELECT CONTENT, NOTES FROM MYLIB.DOCUMENTS WHERE ID = ?")) {
+    select.setInt(1, 1);
+    try (ResultSet rs = select.executeQuery()) {
+        while (rs.next()) {
+            byte[] content = rs.getBytes("CONTENT");
+            Clob notes = rs.getClob("NOTES");
+        }
+    }
+}
+```
+
+* Each value is sent and received whole, so the driver holds it in memory. A stream you set is
+  read to its end before the statement runs. A `Blob` or `Clob` you get is a copy, so changing it
+  does not change the database until you write it back.
+* `mapepire-server` 2.4.0 and later return binary values as links, which the driver downloads over
+  HTTPS from the server's port using the connection's credentials. The server keeps each value for
+  `BLOB_TOKEN_TTL` seconds (60 by default) after returning its row, and serves it only once, so
+  read binary columns soon after fetching their rows. Once downloaded, a value can be read again.
+* Older servers send and receive binary values as hex. To choose the format, the driver asks the
+  server for its version the first time a statement on the connection has a binary parameter.
+* `getObject` returns `byte[]` for `BINARY` and `VARBINARY` columns, `Blob` for `BLOB`, and `Clob`
+  for `CLOB` and `DBCLOB` (`NClob` for `NCLOB`), the classes `ResultSetMetaData.getColumnClassName`
+  reports. `getString` on a binary column returns hex, as with JTOpen.
+
 ### Running a CL command
 
 CL commands are a driver extension, so unwrap the connection to `MapepireConnection` first:
@@ -224,6 +265,9 @@ something from the "not yet supported" list below, please
   binding, fetch size, query timeout
 * `ResultSet` reading by column index or label, forward-only or scrollable (`TYPE_SCROLL_INSENSITIVE`)
 * Updatable result sets (`CONCUR_UPDATABLE`): `updateXxx`, `updateRow`, `deleteRow`, `insertRow`
+* Binary and LOB values: `getBytes` / `setBytes`, binary, character and ASCII streams, `Blob`,
+  `Clob` and `NClob`, and `Connection.createBlob` / `createClob` / `createNClob` (see
+  [Binary and large object values](#binary-and-large-object-values))
 * Transactions: `setAutoCommit`, `commit`, `rollback`, `setTransactionIsolation`, `setReadOnly`, `isReadOnly`
 * `setSchema` / `getSchema`
 * `Connection.isValid()` for pool health checks
@@ -244,9 +288,9 @@ something from the "not yet supported" list below, please
 
 **Not yet supported** (these throw `SQLFeatureNotSupportedException`)
 
-* `TYPE_SCROLL_SENSITIVE` result sets, `refreshRow`, and stream/LOB `updateXxx` methods
+* `TYPE_SCROLL_SENSITIVE` result sets and `refreshRow`
 * `CallableStatement`, savepoints, generated keys
-* BLOB / CLOB / Array / Ref / RowId / SQLXML types
+* Array / Ref / RowId / SQLXML types, and the deprecated `getUnicodeStream` / `setUnicodeStream`
 
 ## Contributing
 

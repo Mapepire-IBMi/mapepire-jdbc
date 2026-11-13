@@ -1,11 +1,18 @@
 package io.github.mapepire_ibmi;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.sql.Blob;
+import java.sql.Clob;
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -504,6 +511,81 @@ class MapepireResultSetTest {
         try (MapepireResultSet emptyRs = new MapepireResultSet(empty)) {
             assertEquals(1, emptyRs.findColumn("id"));
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // binary and LOB values
+    // -------------------------------------------------------------------------
+
+    private static MapepireResultSet lobResultSet(BlobFetcher fetcher, Object blob, Object varbinary, Object clob) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("DATA", blob);
+        row.put("CODE", varbinary);
+        row.put("NOTE", clob);
+        QueryResult<Object> result = new QueryResult<>();
+        result.setData(Arrays.asList((Object) row));
+        result.setIsDone(true);
+        result.setMetadata(new QueryMetadata(3,
+                Arrays.asList(column("DATA", "BLOB"), column("CODE", "VARBINARY"), column("NOTE", "CLOB")), null,
+                null));
+        MapepireConnection connection = new MapepireConnection(new SqlJob(), null, false, fetcher);
+        return new MapepireResultSet(new MapepireStatement(connection), "SELECT * FROM T", result,
+                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+    }
+
+    private static ColumnMetadata column(String name, String type) {
+        return new ColumnMetadata(0, name, name, type, 0, 0, false, ResultSetMetaData.columnNullable, false, true,
+                "T");
+    }
+
+    @Test
+    void blobReferenceIsDownloadedOnceAndKeptForTheRow() throws Exception {
+        BlobFetcher fetcher = mock(BlobFetcher.class);
+        when(fetcher.fetch("/blob/t1", 0)).thenReturn(new byte[] { 1, 2, 3 });
+        Map<String, Object> reference = new LinkedHashMap<>();
+        reference.put("blob_url", "/blob/t1");
+        reference.put("size", 3);
+        MapepireResultSet lobs = lobResultSet(fetcher, reference, null, null);
+        lobs.next();
+
+        byte[] bytes = lobs.getBytes("DATA");
+        assertArrayEquals(new byte[] { 1, 2, 3 }, bytes);
+        bytes[0] = 9;
+        assertArrayEquals(new byte[] { 1, 2, 3 }, lobs.getBytes(1));
+        Blob blob = (Blob) lobs.getObject(1);
+        assertArrayEquals(new byte[] { 2, 3 }, blob.getBytes(2, 2));
+        assertArrayEquals(new byte[] { 1, 2, 3 }, Lobs.readBytes(lobs.getBinaryStream(1)));
+        assertEquals("010203", lobs.getString(1));
+        // The server serves each value once
+        verify(fetcher, times(1)).fetch("/blob/t1", 0);
+    }
+
+    @Test
+    void binaryValuesFromServersBefore24AreHex() throws SQLException {
+        MapepireResultSet lobs = lobResultSet(null, null, "0A0B", null);
+        lobs.next();
+
+        assertArrayEquals(new byte[] { 10, 11 }, lobs.getBytes("CODE"));
+        assertArrayEquals(new byte[] { 10, 11 }, (byte[]) lobs.getObject(2));
+        assertEquals("0A0B", lobs.getString(2));
+        assertNull(lobs.getBlob(1));
+        assertTrue(lobs.wasNull());
+        // Text columns are not converted to bytes
+        rs.next();
+        assertThrows(SQLException.class, () -> rs.getBytes("NAME"));
+    }
+
+    @Test
+    void clobValuesReadAsClobsAndStreams() throws SQLException {
+        MapepireResultSet lobs = lobResultSet(null, null, null, "hello");
+        lobs.next();
+
+        Clob clob = (Clob) lobs.getObject("NOTE");
+        assertEquals("ell", clob.getSubString(2, 3));
+        assertEquals("hello", Lobs.readString(lobs.getCharacterStream(3)));
+        assertEquals("hello", Lobs.readAscii(lobs.getAsciiStream(3)));
+        assertEquals("hello", lobs.getNClob(3).getSubString(1, 5));
+        assertEquals("hello", lobs.getNString("NOTE"));
     }
 
     @Test

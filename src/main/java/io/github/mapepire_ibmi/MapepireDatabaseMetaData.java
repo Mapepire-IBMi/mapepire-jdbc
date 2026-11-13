@@ -1282,7 +1282,8 @@ public class MapepireDatabaseMetaData implements DatabaseMetaData {
 
     @Override
     public boolean locatorsUpdateCopy() throws SQLException {
-        return false;
+        // Blob and Clob values are held in memory, so changing one changes a copy
+        return true;
     }
 
     @Override

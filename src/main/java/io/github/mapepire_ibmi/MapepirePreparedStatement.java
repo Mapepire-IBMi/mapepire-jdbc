@@ -85,7 +85,11 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
     private void executeInternal(List<Object> parameterList) throws SQLException {
         checkClosed();
         QueryOptions options = new QueryOptions();
-        options.setParameters(parameterList);
+        // The SDK sends byte arrays as Base64, which the server decodes for binary
+        // parameters; servers before 2.4.0 expect hex instead
+        options.setParameters(containsBinary(parameterList) && getMapepireConnection().sendsBinaryAsHex()
+                ? binaryToHex(parameterList)
+                : parameterList);
 
         Query query = null;
         try {
@@ -104,6 +108,37 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
                 }
             }
         }
+    }
+
+    /**
+     * Whether a parameter list, or any row of a batch's list of rows, has a
+     * binary value.
+     */
+    private static boolean containsBinary(List<?> parameters) {
+        for (Object parameter : parameters) {
+            if (parameter instanceof byte[] || parameter instanceof List && containsBinary((List<?>) parameter)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A copy of a parameter list, or a batch's list of rows, with binary values
+     * as hex, for servers before 2.4.0.
+     */
+    private static List<Object> binaryToHex(List<?> parameters) {
+        List<Object> converted = new ArrayList<>(parameters.size());
+        for (Object parameter : parameters) {
+            if (parameter instanceof byte[]) {
+                converted.add(Lobs.toHex((byte[]) parameter));
+            } else if (parameter instanceof List) {
+                converted.add(binaryToHex((List<?>) parameter));
+            } else {
+                converted.add(parameter);
+            }
+        }
+        return converted;
     }
 
     @Override
@@ -220,14 +255,13 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
     public void setObject(int parameterIndex, Object x) throws SQLException {
         if (x instanceof Date || x instanceof Time || x instanceof Timestamp) {
             setParameter(parameterIndex, x.toString());
-        } else if (x instanceof byte[]) {
-            // Copy mutable values so a buffer the caller reuses after binding, for
-            // example between addBatch calls, does not change rows already added
-            setParameter(parameterIndex, ((byte[]) x).clone());
         } else if (x instanceof java.util.Date) {
+            // Copy mutable values so a value the caller reuses after binding, for
+            // example between addBatch calls, does not change rows already added
             setParameter(parameterIndex, ((java.util.Date) x).clone());
         } else {
-            setParameter(parameterIndex, x);
+            // Byte arrays are copied too; a Blob or Clob is sent as its value
+            setParameter(parameterIndex, Lobs.materialize(x));
         }
     }
 
@@ -298,14 +332,15 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
 
     @Override
     public void setBytes(int parameterIndex, byte[] x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBytes'");
+        setParameter(parameterIndex, x == null ? null : x.clone());
     }
+
+    // Stream and LOB parameters are read whole when they are set, since the
+    // server receives every parameter value inline in the execute request.
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setAsciiStream'");
+        setParameter(parameterIndex, Lobs.readAscii(x, length));
     }
 
     @Override
@@ -316,14 +351,12 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBinaryStream'");
+        setParameter(parameterIndex, Lobs.readBytes(x, length));
     }
 
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader, int length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setCharacterStream'");
+        setParameter(parameterIndex, Lobs.readString(reader, length));
     }
 
     @Override
@@ -334,14 +367,12 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
 
     @Override
     public void setBlob(int parameterIndex, Blob x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBlob'");
+        setParameter(parameterIndex, Lobs.toBytes(x));
     }
 
     @Override
     public void setClob(int parameterIndex, Clob x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setClob'");
+        setParameter(parameterIndex, Lobs.toString(x));
     }
 
     @Override
@@ -405,32 +436,27 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
 
     @Override
     public void setNCharacterStream(int parameterIndex, Reader value, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNCharacterStream'");
+        setParameter(parameterIndex, Lobs.readString(value, length));
     }
 
     @Override
     public void setNClob(int parameterIndex, NClob value) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNClob'");
+        setParameter(parameterIndex, Lobs.toString(value));
     }
 
     @Override
     public void setClob(int parameterIndex, Reader reader, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setClob'");
+        setParameter(parameterIndex, Lobs.readString(reader, length));
     }
 
     @Override
     public void setBlob(int parameterIndex, InputStream inputStream, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBlob'");
+        setParameter(parameterIndex, Lobs.readBytes(inputStream, length));
     }
 
     @Override
     public void setNClob(int parameterIndex, Reader reader, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNClob'");
+        setParameter(parameterIndex, Lobs.readString(reader, length));
     }
 
     @Override
@@ -441,61 +467,51 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setAsciiStream'");
+        setParameter(parameterIndex, Lobs.readAscii(x, length));
     }
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBinaryStream'");
+        setParameter(parameterIndex, Lobs.readBytes(x, length));
     }
 
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setCharacterStream'");
+        setParameter(parameterIndex, Lobs.readString(reader, length));
     }
 
     @Override
     public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setAsciiStream'");
+        setParameter(parameterIndex, Lobs.readAscii(x));
     }
 
     @Override
     public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBinaryStream'");
+        setParameter(parameterIndex, Lobs.readBytes(x));
     }
 
     @Override
     public void setCharacterStream(int parameterIndex, Reader reader) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setCharacterStream'");
+        setParameter(parameterIndex, Lobs.readString(reader));
     }
 
     @Override
     public void setNCharacterStream(int parameterIndex, Reader value) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNCharacterStream'");
+        setParameter(parameterIndex, Lobs.readString(value));
     }
 
     @Override
     public void setClob(int parameterIndex, Reader reader) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setClob'");
+        setParameter(parameterIndex, Lobs.readString(reader));
     }
 
     @Override
     public void setBlob(int parameterIndex, InputStream inputStream) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setBlob'");
+        setParameter(parameterIndex, Lobs.readBytes(inputStream));
     }
 
     @Override
     public void setNClob(int parameterIndex, Reader reader) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'setNClob'");
+        setParameter(parameterIndex, Lobs.readString(reader));
     }
 }

@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.github.mapepire_ibmi.types.CLCommandResult;
 import io.github.mapepire_ibmi.types.JobStatus;
@@ -31,14 +33,18 @@ import io.github.mapepire_ibmi.types.QueryResult;
 import io.github.mapepire_ibmi.types.SqlCLCommandResult;
 
 public class MapepireConnection implements Connection {
+    private static final Pattern VERSION = Pattern.compile("^\\s*(\\d+)\\.(\\d+)");
+
     private final SqlJob job;
     private final String url;
     private boolean autoCommit = true;
     private final boolean readOnly;
+    private final BlobFetcher blobFetcher;
     private int networkTimeoutMillis;
     private Executor networkTimeoutExecutor;
     private volatile boolean closedByTimeout;
     private DatabaseMetaData metaData;
+    private volatile Boolean hexBinaryParameters;
 
     public MapepireConnection(SqlJob job) {
         this(job, null);
@@ -65,13 +71,72 @@ public class MapepireConnection implements Connection {
      *                 option set to {@code read only} or {@code read call}.
      */
     public MapepireConnection(SqlJob job, String url, boolean readOnly) {
+        this(job, url, readOnly, null);
+    }
+
+    /**
+     * Create a connection over the given job that can download the binary
+     * values the server returns as references.
+     *
+     * @param blobFetcher Downloads binary values from the server the job is
+     *                    connected to. Without one, reading a BINARY, VARBINARY
+     *                    or BLOB value from mapepire-server 2.4.0 or later fails.
+     */
+    MapepireConnection(SqlJob job, String url, boolean readOnly, BlobFetcher blobFetcher) {
         this.job = job;
         this.url = url;
         this.readOnly = readOnly;
+        this.blobFetcher = blobFetcher;
     }
 
     public SqlJob getJob() {
         return this.job;
+    }
+
+    /**
+     * Download a binary value that the server returned as a reference.
+     *
+     * @param blobUrl The {@code blob_url} of the reference.
+     */
+    byte[] fetchBlob(String blobUrl) throws SQLException {
+        if (this.blobFetcher == null) {
+            throw new SQLException("Cannot download a BLOB value: the connection was not opened by MapepireDriver, "
+                    + "so the server's address and credentials are unknown");
+        }
+        return this.blobFetcher.fetch(blobUrl, this.networkTimeoutMillis);
+    }
+
+    /**
+     * Whether binary parameters must be sent as hex rather than Base64. Servers
+     * before 2.4.0 bind every parameter as a string, which JTOpen parses as hex
+     * for a binary parameter; later servers decode Base64 for it instead. The
+     * server is asked for its version the first time.
+     */
+    boolean sendsBinaryAsHex() throws SQLException {
+        Boolean hex = this.hexBinaryParameters;
+        if (hex == null) {
+            try {
+                hex = isVersionBefore(resolve(this.job.getVersion()).getVersion(), 2, 4);
+            } catch (Exception e) {
+                throw SqlExceptions.toSqlException(e);
+            }
+            this.hexBinaryParameters = hex;
+        }
+        return hex;
+    }
+
+    /**
+     * Whether a server version such as {@code 2.3.6} is before the given major
+     * and minor version. A version that cannot be read is taken to be current.
+     */
+    static boolean isVersionBefore(String version, int major, int minor) {
+        Matcher matcher = VERSION.matcher(version == null ? "" : version);
+        if (!matcher.find()) {
+            return false;
+        }
+        int serverMajor = Integer.parseInt(matcher.group(1));
+        int serverMinor = Integer.parseInt(matcher.group(2));
+        return serverMajor < major || serverMajor == major && serverMinor < minor;
     }
 
     String getUrl() {
@@ -479,22 +544,37 @@ public class MapepireConnection implements Connection {
         throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareStatement'");
     }
 
+    /**
+     * Create an empty clob held in memory. Its value is sent to the server when
+     * it is set as a parameter or column value.
+     */
     @Override
     public Clob createClob() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'createClob'");
+        return createNClob();
     }
 
+    /**
+     * Create an empty blob held in memory. Its value is sent to the server when
+     * it is set as a parameter or column value.
+     */
     @Override
     public Blob createBlob() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'createBlob'");
+        if (isClosed()) {
+            throw new SQLException("Connection is closed");
+        }
+        return new MapepireBlob();
     }
 
+    /**
+     * Create an empty clob held in memory. Its value is sent to the server when
+     * it is set as a parameter or column value.
+     */
     @Override
     public NClob createNClob() throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'createNClob'");
+        if (isClosed()) {
+            throw new SQLException("Connection is closed");
+        }
+        return new MapepireClob();
     }
 
     @Override

@@ -76,6 +76,14 @@ final class ResultSetUpdater {
     }
 
     /**
+     * The 1-based indexes of the primary key columns, whose values identify the
+     * row to update or delete.
+     */
+    int[] getKeyColumns() {
+        return this.keyColumns.clone();
+    }
+
+    /**
      * Updates the row whose current values are {@code row} with the given changes.
      *
      * @param row     The row's current values, in column order.

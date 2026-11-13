@@ -1,10 +1,13 @@
 package io.github.mapepire_ibmi;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.Clob;
@@ -223,7 +226,68 @@ public class MapepireResultSet implements ResultSet {
     @Override
     public String getString(int columnIndex) throws SQLException {
         Object value = getValue(columnIndex);
+        if (value instanceof byte[] || value instanceof Map) {
+            // Binary values read as hex, as with JTOpen
+            return Lobs.toHex(getBinary(columnIndex));
+        }
         return value == null ? null : value.toString();
+    }
+
+    /**
+     * The bytes of a binary value, not copied. mapepire-server 2.4.0 and later
+     * return BINARY, VARBINARY and BLOB values as references to download, and
+     * earlier servers return them as hex.
+     */
+    private byte[] getBinary(int columnIndex) throws SQLException {
+        Object value = getValue(columnIndex);
+        if (value == null || value instanceof byte[]) {
+            return (byte[]) value;
+        } else if (value instanceof Map) {
+            return download(columnIndex, (Map<?, ?>) value);
+        } else if (value instanceof String && isBinaryColumn(columnIndex)) {
+            return Lobs.fromHex((String) value);
+        }
+        throw new SQLException("Cannot convert value of column " + columnIndex + " to bytes");
+    }
+
+    /**
+     * Download a binary value from the reference the server returned in its
+     * place. The server serves each value once, so it replaces the reference in
+     * the row for later reads.
+     */
+    private byte[] download(int columnIndex, Map<?, ?> reference) throws SQLException {
+        if (this.statement == null) {
+            throw new SQLException("Cannot download the value of column " + columnIndex
+                    + ": the result set has no connection");
+        }
+        Object blobUrl = reference.get("blob_url");
+        byte[] bytes = this.statement.getMapepireConnection().fetchBlob(blobUrl == null ? null : blobUrl.toString());
+        if (!this.onInsertRow) {
+            this.currentRowValues[columnIndex - 1] = bytes;
+            this.currentRow.put(this.columnLabels.get(columnIndex - 1), bytes);
+        }
+        return bytes;
+    }
+
+    private boolean isBinaryColumn(int columnIndex) {
+        try {
+            return JdbcTypes.isBinary(getMetaData().getColumnType(columnIndex));
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Download the binary values of the current row's key columns, which
+     * identify the row to update or delete.
+     */
+    private void downloadKeyValues() throws SQLException {
+        for (int keyColumn : getUpdater().getKeyColumns()) {
+            Object value = this.currentRowValues[keyColumn - 1];
+            if (value instanceof Map) {
+                download(keyColumn, (Map<?, ?>) value);
+            }
+        }
     }
 
     @Override
@@ -299,8 +363,8 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public byte[] getBytes(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getBytes'");
+        byte[] value = getBinary(columnIndex);
+        return value == null ? null : value.clone();
     }
 
     @Override
@@ -344,8 +408,8 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public InputStream getAsciiStream(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getAsciiStream'");
+        String value = getString(columnIndex);
+        return value == null ? null : new ByteArrayInputStream(value.getBytes(StandardCharsets.ISO_8859_1));
     }
 
     @Override
@@ -356,8 +420,8 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public InputStream getBinaryStream(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getBinaryStream'");
+        byte[] value = getBinary(columnIndex);
+        return value == null ? null : new ByteArrayInputStream(value);
     }
 
     @Override
@@ -407,8 +471,7 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public byte[] getBytes(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getBytes'");
+        return getBytes(findColumn(columnLabel));
     }
 
     @Override
@@ -428,8 +491,7 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public InputStream getAsciiStream(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getAsciiStream'");
+        return getAsciiStream(findColumn(columnLabel));
     }
 
     @Override
@@ -440,8 +502,7 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public InputStream getBinaryStream(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getBinaryStream'");
+        return getBinaryStream(findColumn(columnLabel));
     }
 
     @Override
@@ -514,6 +575,16 @@ public class MapepireResultSet implements ResultSet {
                 return getTimestamp(columnIndex);
             case Types.BOOLEAN:
                 return getBoolean(columnIndex);
+            case Types.BINARY:
+            case Types.VARBINARY:
+            case Types.LONGVARBINARY:
+                return getBytes(columnIndex);
+            case Types.BLOB:
+                return getBlob(columnIndex);
+            case Types.CLOB:
+                return getClob(columnIndex);
+            case Types.NCLOB:
+                return getNClob(columnIndex);
             default:
                 return value;
         }
@@ -537,14 +608,13 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public Reader getCharacterStream(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getCharacterStream'");
+        String value = getString(columnIndex);
+        return value == null ? null : new StringReader(value);
     }
 
     @Override
     public Reader getCharacterStream(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getCharacterStream'");
+        return getCharacterStream(findColumn(columnLabel));
     }
 
     @Override
@@ -815,8 +885,7 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public void updateBytes(int columnIndex, byte[] x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBytes'");
+        setColumnValue(columnIndex, x == null ? null : x.clone());
     }
 
     @Override
@@ -834,34 +903,34 @@ public class MapepireResultSet implements ResultSet {
         setColumnValue(columnIndex, x);
     }
 
+    // Stream and LOB values are read whole when they are set, since they are
+    // written to the database as statement parameters.
+
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x, int length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateAsciiStream'");
+        setColumnValue(columnIndex, Lobs.readAscii(x, length));
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x, int length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBinaryStream'");
+        setColumnValue(columnIndex, Lobs.readBytes(x, length));
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x, int length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateCharacterStream'");
+        setColumnValue(columnIndex, Lobs.readString(x, length));
     }
 
     @Override
     public void updateObject(int columnIndex, Object x, int scaleOrLength) throws SQLException {
         // The scale applies to BigDecimal values; the length of streams does not apply
         setColumnValue(columnIndex, x instanceof BigDecimal
-                ? ((BigDecimal) x).setScale(scaleOrLength, RoundingMode.HALF_UP) : x);
+                ? ((BigDecimal) x).setScale(scaleOrLength, RoundingMode.HALF_UP) : Lobs.materialize(x));
     }
 
     @Override
     public void updateObject(int columnIndex, Object x) throws SQLException {
-        setColumnValue(columnIndex, x);
+        setColumnValue(columnIndex, Lobs.materialize(x));
     }
 
     @Override
@@ -916,8 +985,7 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public void updateBytes(String columnLabel, byte[] x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBytes'");
+        updateBytes(findColumn(columnLabel), x);
     }
 
     @Override
@@ -937,20 +1005,17 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x, int length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateAsciiStream'");
+        updateAsciiStream(findColumn(columnLabel), x, length);
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x, int length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBinaryStream'");
+        updateBinaryStream(findColumn(columnLabel), x, length);
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader, int length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateCharacterStream'");
+        updateCharacterStream(findColumn(columnLabel), reader, length);
     }
 
     @Override
@@ -981,6 +1046,7 @@ public class MapepireResultSet implements ResultSet {
         if (this.rowChanges.isEmpty()) {
             return;
         }
+        downloadKeyValues();
         getUpdater().update(this.currentRowValues, this.rowChanges);
 
         Map<String, Object> updatedRow = new LinkedHashMap<>(this.currentRow);
@@ -994,6 +1060,7 @@ public class MapepireResultSet implements ResultSet {
     @Override
     public void deleteRow() throws SQLException {
         checkOnCurrentRow("deleteRow");
+        downloadKeyValues();
         getUpdater().delete(this.currentRowValues);
 
         // The cursor moves to the row before, so next() moves to the row that followed
@@ -1052,16 +1119,23 @@ public class MapepireResultSet implements ResultSet {
         throw new SQLFeatureNotSupportedException("Unimplemented method 'getRef'");
     }
 
+    /**
+     * The value of a column as a blob held in memory. Changing the blob does not
+     * change the database.
+     */
     @Override
     public Blob getBlob(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getBlob'");
+        byte[] value = getBinary(columnIndex);
+        return value == null ? null : new MapepireBlob(value.clone());
     }
 
+    /**
+     * The value of a column as a clob held in memory. Changing the clob does not
+     * change the database.
+     */
     @Override
     public Clob getClob(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getClob'");
+        return getNClob(columnIndex);
     }
 
     @Override
@@ -1084,14 +1158,12 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public Blob getBlob(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getBlob'");
+        return getBlob(findColumn(columnLabel));
     }
 
     @Override
     public Clob getClob(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getClob'");
+        return getClob(findColumn(columnLabel));
     }
 
     @Override
@@ -1162,26 +1234,22 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public void updateBlob(int columnIndex, Blob x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBlob'");
+        setColumnValue(columnIndex, Lobs.toBytes(x));
     }
 
     @Override
     public void updateBlob(String columnLabel, Blob x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBlob'");
+        updateBlob(findColumn(columnLabel), x);
     }
 
     @Override
     public void updateClob(int columnIndex, Clob x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateClob'");
+        setColumnValue(columnIndex, Lobs.toString(x));
     }
 
     @Override
     public void updateClob(String columnLabel, Clob x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateClob'");
+        updateClob(findColumn(columnLabel), x);
     }
 
     @Override
@@ -1243,26 +1311,27 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public void updateNClob(int columnIndex, NClob nClob) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateNClob'");
+        setColumnValue(columnIndex, Lobs.toString(nClob));
     }
 
     @Override
     public void updateNClob(String columnLabel, NClob nClob) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateNClob'");
+        updateNClob(findColumn(columnLabel), nClob);
     }
 
+    /**
+     * The value of a column as a clob held in memory. Changing the clob does not
+     * change the database.
+     */
     @Override
     public NClob getNClob(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNClob'");
+        String value = getString(columnIndex);
+        return value == null ? null : new MapepireClob(value);
     }
 
     @Override
     public NClob getNClob(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNClob'");
+        return getNClob(findColumn(columnLabel));
     }
 
     @Override
@@ -1291,194 +1360,162 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public String getNString(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNString'");
+        return getString(columnIndex);
     }
 
     @Override
     public String getNString(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNString'");
+        return getString(findColumn(columnLabel));
     }
 
     @Override
     public Reader getNCharacterStream(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNCharacterStream'");
+        return getCharacterStream(columnIndex);
     }
 
     @Override
     public Reader getNCharacterStream(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNCharacterStream'");
+        return getCharacterStream(findColumn(columnLabel));
     }
 
     @Override
     public void updateNCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateNCharacterStream'");
+        setColumnValue(columnIndex, Lobs.readString(x, length));
     }
 
     @Override
     public void updateNCharacterStream(String columnLabel, Reader reader, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateNCharacterStream'");
+        updateNCharacterStream(findColumn(columnLabel), reader, length);
     }
 
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateAsciiStream'");
+        setColumnValue(columnIndex, Lobs.readAscii(x, length));
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBinaryStream'");
+        setColumnValue(columnIndex, Lobs.readBytes(x, length));
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateCharacterStream'");
+        setColumnValue(columnIndex, Lobs.readString(x, length));
     }
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateAsciiStream'");
+        updateAsciiStream(findColumn(columnLabel), x, length);
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBinaryStream'");
+        updateBinaryStream(findColumn(columnLabel), x, length);
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateCharacterStream'");
+        updateCharacterStream(findColumn(columnLabel), reader, length);
     }
 
     @Override
     public void updateBlob(int columnIndex, InputStream inputStream, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBlob'");
+        setColumnValue(columnIndex, Lobs.readBytes(inputStream, length));
     }
 
     @Override
     public void updateBlob(String columnLabel, InputStream inputStream, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBlob'");
+        updateBlob(findColumn(columnLabel), inputStream, length);
     }
 
     @Override
     public void updateClob(int columnIndex, Reader reader, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateClob'");
+        setColumnValue(columnIndex, Lobs.readString(reader, length));
     }
 
     @Override
     public void updateClob(String columnLabel, Reader reader, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateClob'");
+        updateClob(findColumn(columnLabel), reader, length);
     }
 
     @Override
     public void updateNClob(int columnIndex, Reader reader, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateNClob'");
+        setColumnValue(columnIndex, Lobs.readString(reader, length));
     }
 
     @Override
     public void updateNClob(String columnLabel, Reader reader, long length) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateNClob'");
+        updateNClob(findColumn(columnLabel), reader, length);
     }
 
     @Override
     public void updateNCharacterStream(int columnIndex, Reader x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateNCharacterStream'");
+        setColumnValue(columnIndex, Lobs.readString(x));
     }
 
     @Override
     public void updateNCharacterStream(String columnLabel, Reader reader) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateNCharacterStream'");
+        updateNCharacterStream(findColumn(columnLabel), reader);
     }
 
     @Override
     public void updateAsciiStream(int columnIndex, InputStream x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateAsciiStream'");
+        setColumnValue(columnIndex, Lobs.readAscii(x));
     }
 
     @Override
     public void updateBinaryStream(int columnIndex, InputStream x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBinaryStream'");
+        setColumnValue(columnIndex, Lobs.readBytes(x));
     }
 
     @Override
     public void updateCharacterStream(int columnIndex, Reader x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateCharacterStream'");
+        setColumnValue(columnIndex, Lobs.readString(x));
     }
 
     @Override
     public void updateAsciiStream(String columnLabel, InputStream x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateAsciiStream'");
+        updateAsciiStream(findColumn(columnLabel), x);
     }
 
     @Override
     public void updateBinaryStream(String columnLabel, InputStream x) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBinaryStream'");
+        updateBinaryStream(findColumn(columnLabel), x);
     }
 
     @Override
     public void updateCharacterStream(String columnLabel, Reader reader) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateCharacterStream'");
+        updateCharacterStream(findColumn(columnLabel), reader);
     }
 
     @Override
     public void updateBlob(int columnIndex, InputStream inputStream) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBlob'");
+        setColumnValue(columnIndex, Lobs.readBytes(inputStream));
     }
 
     @Override
     public void updateBlob(String columnLabel, InputStream inputStream) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateBlob'");
+        updateBlob(findColumn(columnLabel), inputStream);
     }
 
     @Override
     public void updateClob(int columnIndex, Reader reader) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateClob'");
+        setColumnValue(columnIndex, Lobs.readString(reader));
     }
 
     @Override
     public void updateClob(String columnLabel, Reader reader) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateClob'");
+        updateClob(findColumn(columnLabel), reader);
     }
 
     @Override
     public void updateNClob(int columnIndex, Reader reader) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateNClob'");
+        setColumnValue(columnIndex, Lobs.readString(reader));
     }
 
     @Override
     public void updateNClob(String columnLabel, Reader reader) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'updateNClob'");
+        updateNClob(findColumn(columnLabel), reader);
     }
 
     @Override

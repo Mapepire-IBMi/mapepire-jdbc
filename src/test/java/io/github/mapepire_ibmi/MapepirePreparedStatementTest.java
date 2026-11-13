@@ -15,7 +15,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayInputStream;
+import java.io.StringReader;
 import java.sql.BatchUpdateException;
+import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -38,6 +41,7 @@ import io.github.mapepire_ibmi.types.ColumnMetadata;
 import io.github.mapepire_ibmi.types.QueryMetadata;
 import io.github.mapepire_ibmi.types.QueryOptions;
 import io.github.mapepire_ibmi.types.QueryResult;
+import io.github.mapepire_ibmi.types.VersionCheckResult;
 
 @ExtendWith(MockitoExtension.class)
 @SuppressWarnings("unchecked")
@@ -154,7 +158,62 @@ class MapepirePreparedStatementTest {
 
     @Test
     void unimplementedMethodsThrowSQLFeatureNotSupportedException() {
-        assertThrows(SQLFeatureNotSupportedException.class, () -> ps.setBytes(1, new byte[0]));
+        assertThrows(SQLFeatureNotSupportedException.class, () -> ps.setArray(1, null));
+    }
+
+    // -------------------------------------------------------------------------
+    // binary and LOB parameters
+    // -------------------------------------------------------------------------
+
+    private static CompletableFuture<VersionCheckResult> serverVersion(String version) {
+        return CompletableFuture.completedFuture(new VersionCheckResult(null, true, null, 0, null, 0, null, version));
+    }
+
+    private void stubExecution(String version) throws Exception {
+        when(mockJob.getVersion()).thenReturn(serverVersion(version));
+        when(mockJob.query(anyString(), any(QueryOptions.class))).thenReturn(mockQuery);
+        when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(new QueryResult<>()));
+    }
+
+    @Test
+    void lobAndStreamParametersAreSentWholeAsBytesOrText() throws Exception {
+        MapepirePreparedStatement mockedPs = preparedStatementWithMockJob("INSERT INTO T VALUES (?, ?, ?, ?)");
+        stubExecution("2.5.1");
+
+        Blob blob = connection.createBlob();
+        blob.setBytes(1, new byte[] { 1, 2 });
+        mockedPs.setBlob(1, blob);
+        mockedPs.setBinaryStream(2, new ByteArrayInputStream(new byte[] { 3, 4, 5 }), 2);
+        mockedPs.setClob(3, new StringReader("text"));
+        mockedPs.setObject(4, new MapepireClob("clob"));
+        mockedPs.executeUpdate();
+
+        ArgumentCaptor<QueryOptions> captor = ArgumentCaptor.forClass(QueryOptions.class);
+        verify(mockJob).query(anyString(), captor.capture());
+        List<Object> parameters = captor.getValue().getParameters();
+        // Byte arrays are serialized as Base64, which servers from 2.4.0 decode
+        assertArrayEquals(new byte[] { 1, 2 }, (byte[]) parameters.get(0));
+        assertArrayEquals(new byte[] { 3, 4 }, (byte[]) parameters.get(1));
+        assertEquals(Arrays.asList("text", "clob"), parameters.subList(2, 4));
+    }
+
+    @Test
+    void binaryParametersAreSentAsHexToServersBefore24() throws Exception {
+        MapepirePreparedStatement mockedPs = preparedStatementWithMockJob("INSERT INTO T VALUES (?, ?)");
+        stubExecution("2.3.6");
+
+        mockedPs.setBytes(1, new byte[] { 0, -1 });
+        mockedPs.setString(2, "x");
+        mockedPs.executeUpdate();
+        mockedPs.addBatch();
+        mockedPs.executeBatch();
+
+        ArgumentCaptor<QueryOptions> captor = ArgumentCaptor.forClass(QueryOptions.class);
+        verify(mockJob, times(2)).query(anyString(), captor.capture());
+        assertEquals(Arrays.asList("00FF", "x"), captor.getAllValues().get(0).getParameters());
+        assertEquals(Arrays.asList(Arrays.asList("00FF", "x")), captor.getAllValues().get(1).getParameters());
+        // The server is asked for its version once per connection
+        verify(mockJob).getVersion();
     }
 
     // -------------------------------------------------------------------------
@@ -166,6 +225,7 @@ class MapepirePreparedStatementTest {
         MapepirePreparedStatement mockedPs = preparedStatementWithMockJob("INSERT INTO T VALUES (?, ?)");
         QueryResult<Object> two = new QueryResult<>();
         two.setUpdateCount(2);
+        when(mockJob.getVersion()).thenReturn(serverVersion("2.5.1"));
         when(mockJob.query(anyString(), any(QueryOptions.class))).thenReturn(mockQuery);
         when(mockQuery.<Object>execute(anyInt())).thenReturn(CompletableFuture.completedFuture(two));
 

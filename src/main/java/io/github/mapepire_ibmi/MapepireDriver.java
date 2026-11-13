@@ -102,7 +102,7 @@ public class MapepireDriver implements Driver {
             job.connect(server).get();
             // Only host and port: the original URL may carry a password property.
             String connectionUrl = "jdbc:mapepire://" + server.getHost() + ":" + server.getPort();
-            return new MapepireConnection(job, connectionUrl, isReadOnlyAccess(p));
+            return new MapepireConnection(job, connectionUrl, isReadOnlyAccess(p), new BlobFetcher(server));
         } catch (Exception e) {
             throw SqlExceptions.toSqlException(e);
         }

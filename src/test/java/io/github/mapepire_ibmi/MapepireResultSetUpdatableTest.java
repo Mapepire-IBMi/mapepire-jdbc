@@ -1,9 +1,12 @@
 package io.github.mapepire_ibmi;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.AdditionalMatchers.aryEq;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -92,6 +95,28 @@ class MapepireResultSetUpdatableTest {
         verify(this.preparedStatement).setObject(1, "Bob");
         verify(this.preparedStatement).setObject(2, 2);
         assertEquals("Bob", rs.getString(2));
+    }
+
+    @Test
+    void updateRowDownloadsABinaryKeyToIdentifyTheRow() throws SQLException {
+        stubPrimaryKey("MYLIB", "ID");
+        stubUpdateCount(1);
+        Map<String, Object> reference = new LinkedHashMap<>();
+        reference.put("blob_url", "/blob/k1");
+        when(this.connection.fetchBlob("/blob/k1")).thenReturn(new byte[] { 7 });
+        MapepireStatement statement = new MapepireStatement(this.connection, ResultSet.TYPE_FORWARD_ONLY,
+                ResultSet.CONCUR_UPDATABLE);
+        MapepireResultSet rs = new MapepireResultSet(statement, QUERY, rows("ID", reference),
+                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+
+        rs.next();
+        rs.updateBytes("NAME", new byte[] { 1 });
+        rs.updateRow();
+
+        verify(this.preparedStatement).setObject(eq(1), aryEq(new byte[] { 1 }));
+        verify(this.preparedStatement).setObject(eq(2), aryEq(new byte[] { 7 }));
+        assertArrayEquals(new byte[] { 1 }, rs.getBytes("NAME"));
+        assertArrayEquals(new byte[] { 7 }, rs.getBytes("ID"));
     }
 
     @Test

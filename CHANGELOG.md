@@ -16,14 +16,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   statement in its own request. The first failure stops the batch with a `BatchUpdateException`
   that carries the update counts of the entries that succeeded.
   `DatabaseMetaData.supportsBatchUpdates()` now returns `true`
+- Binary and large object values: `getBytes` / `setBytes`, `getBlob` / `setBlob`, `getClob` /
+  `setClob`, `getNClob` / `setNClob`, binary, character and ASCII streams, `getNString`, the
+  matching `updateXxx` methods on updatable result sets, and `Connection.createBlob` /
+  `createClob` / `createNClob`. Values are held in memory. Binary values that `mapepire-server`
+  2.4.0 and later return as links are downloaded over HTTPS from the server's port; older servers'
+  hex values are read and written as hex
 
 ### Changed
 
+- `getObject` returns `byte[]` for `BINARY` and `VARBINARY` columns, a `Blob` for `BLOB` columns,
+  and a `Clob` for `CLOB` and `DBCLOB` columns (`NClob` for `NCLOB`), matching
+  `getColumnClassName`. It used to return the server's raw value: a `String` for character LOBs,
+  and a link or hex string for binary columns. Use `getString` to read a CLOB as a `String`
+- `getString` on a binary column returns the value as hex, as JTOpen does
+- `DatabaseMetaData.locatorsUpdateCopy()` returns `true`, since `Blob` and `Clob` values are copies
 - Read-only mode now comes from the `access` connection property and is enforced by the server; `setReadOnly` no longer sends `SET TRANSACTION READ ONLY` and throws if asked to change the mode
 - Bump Mockito 5.24.0, JaCoCo 0.8.16, Surefire 3.6.1, Enforcer 3.7.0
 
 ### Fixed
 
+- A `byte[]` parameter set with `setObject` is now sent as hex to `mapepire-server` versions before
+  2.4.0, which read binary parameters as hex. It was sent as Base64, so it was rejected or stored
+  as the wrong bytes
 - Re-executing a statement now closes the previous query on the server even when all of its rows
   had been read, so repeated executions no longer leave statements open
 - A query timeout during execution no longer closes the statement's previous query instead of the
