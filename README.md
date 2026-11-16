@@ -123,6 +123,28 @@ try (Statement statement = connection.createStatement()) {
 }
 ```
 
+### Calling a stored procedure
+
+```java
+try (CallableStatement call = connection.prepareCall("{call MYLIB.CALC_BONUS(?, ?, ?)}")) {
+    call.setString(1, "000010");                   // IN
+    call.setBigDecimal(2, new BigDecimal("0.10")); // INOUT: set it and register it
+    call.registerOutParameter(2, Types.DECIMAL);
+    call.registerOutParameter(3, Types.DECIMAL);   // OUT: register it only
+    call.execute();
+    BigDecimal bonus = call.getBigDecimal(3);
+}
+```
+
+* Set and register parameters by index. Once the call has run, OUT values can also be read by the
+  parameter name from the procedure's definition, such as `getBigDecimal("BONUS")`.
+* Always set an INOUT parameter before executing. One that is registered but not set is sent an
+  empty string as its input.
+* The procedure's first result set is available from `executeQuery` or `getResultSet`. Any
+  further result sets are not returned.
+* Not supported: return values (`{? = call ...}`), setting parameters by name, binary OUT values,
+  NULL input values for INOUT parameters, and batching a call that has OUT parameters.
+
 ### Transactions
 
 Auto-commit is on by default, same as the JDBC spec. Turn it off to group statements into a
@@ -222,6 +244,8 @@ something from the "not yet supported" list below, please
 
 * `Statement` and `PreparedStatement`: `executeQuery`, `executeUpdate`, `execute`, parameter
   binding, fetch size, query timeout
+* `CallableStatement` for stored procedures with IN, OUT, and INOUT parameters (see
+  [Calling a stored procedure](#calling-a-stored-procedure))
 * `ResultSet` reading by column index or label, forward-only or scrollable (`TYPE_SCROLL_INSENSITIVE`)
 * Updatable result sets (`CONCUR_UPDATABLE`): `updateXxx`, `updateRow`, `deleteRow`, `insertRow`
 * Transactions: `setAutoCommit`, `commit`, `rollback`, `setTransactionIsolation`, `setReadOnly`, `isReadOnly`
@@ -245,7 +269,7 @@ something from the "not yet supported" list below, please
 **Not yet supported** (these throw `SQLFeatureNotSupportedException`)
 
 * `TYPE_SCROLL_SENSITIVE` result sets, `refreshRow`, and stream/LOB `updateXxx` methods
-* `CallableStatement`, savepoints, generated keys
+* Savepoints, generated keys
 * BLOB / CLOB / Array / Ref / RowId / SQLXML types
 
 ## Contributing

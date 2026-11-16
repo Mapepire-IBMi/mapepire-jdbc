@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   statement in its own request. The first failure stops the batch with a `BatchUpdateException`
   that carries the update counts of the entries that succeeded.
   `DatabaseMetaData.supportsBatchUpdates()` now returns `true`
+- `CallableStatement` via `Connection.prepareCall`, for calling stored procedures with IN, OUT and
+  INOUT parameters. The JDBC `{call ...}` escape is accepted. Parameters are set and registered by
+  index, and OUT values can be read by index or by parameter name. Only the procedure's first
+  result set is returned. Return values (`{? = call ...}`), binary OUT values, NULL input values
+  for INOUT parameters and setting parameters by name are not supported
 
 ### Changed
 
