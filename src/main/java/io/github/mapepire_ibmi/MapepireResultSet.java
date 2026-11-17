@@ -2,6 +2,7 @@ package io.github.mapepire_ibmi;
 
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URL;
@@ -537,14 +538,13 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public Reader getCharacterStream(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getCharacterStream'");
+        String value = getString(columnIndex);
+        return value == null ? null : new StringReader(value);
     }
 
     @Override
     public Reader getCharacterStream(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getCharacterStream'");
+        return getCharacterStream(findColumn(columnLabel));
     }
 
     @Override
@@ -1042,8 +1042,11 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public Object getObject(int columnIndex, Map<String, Class<?>> map) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getObject'");
+        // No user-defined types are returned, so only an empty type map can be honored
+        if (map != null && !map.isEmpty()) {
+            throw new SQLFeatureNotSupportedException("Custom type mappings are not supported");
+        }
+        return getObject(columnIndex);
     }
 
     @Override
@@ -1072,8 +1075,7 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public Object getObject(String columnLabel, Map<String, Class<?>> map) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getObject'");
+        return getObject(findColumn(columnLabel), map);
     }
 
     @Override
@@ -1291,26 +1293,23 @@ public class MapepireResultSet implements ResultSet {
 
     @Override
     public String getNString(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNString'");
+        // Values arrive as JSON strings, so national character data needs no conversion
+        return getString(columnIndex);
     }
 
     @Override
     public String getNString(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNString'");
+        return getNString(findColumn(columnLabel));
     }
 
     @Override
     public Reader getNCharacterStream(int columnIndex) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNCharacterStream'");
+        return getCharacterStream(columnIndex);
     }
 
     @Override
     public Reader getNCharacterStream(String columnLabel) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'getNCharacterStream'");
+        return getNCharacterStream(findColumn(columnLabel));
     }
 
     @Override

@@ -11,6 +11,7 @@ import java.sql.Clob;
 import java.sql.Date;
 import java.sql.NClob;
 import java.sql.Ref;
+import java.sql.ResultSet;
 import java.sql.RowId;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
@@ -229,13 +230,38 @@ public class MapepireCallableStatement extends MapepirePreparedStatement impleme
     // execution
     // -------------------------------------------------------------------------
 
+    // The OUT values are cleared before every execution, so one that fails leaves
+    // none from the last one to read
+
+    @Override
+    public ResultSet executeQuery() throws SQLException {
+        clearOutValues();
+        return super.executeQuery();
+    }
+
+    @Override
+    public int executeUpdate() throws SQLException {
+        clearOutValues();
+        return super.executeUpdate();
+    }
+
+    @Override
+    public boolean execute() throws SQLException {
+        clearOutValues();
+        return super.execute();
+    }
+
+    @Override
+    public int[] executeBatch() throws SQLException {
+        clearOutValues();
+        return super.executeBatch();
+    }
+
     /**
-     * Every execution, batches included, ends here, so the OUT values are always
-     * those of the last execution.
+     * Every execution that succeeds, batches included, ends here.
      */
     @Override
     protected void setExecutionState(Query query, QueryResult<Object> result, String sql) throws SQLException {
-        clearOutValues();
         super.setExecutionState(query, result, sql);
         readOutValues(result);
     }

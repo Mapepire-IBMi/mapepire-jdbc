@@ -9,15 +9,18 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.BufferedReader;
 import java.sql.CallableStatement;
 import java.sql.JDBCType;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Types;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -108,6 +111,45 @@ class MapepireCallableStatementTest {
         assertTrue(assertThrows(SQLException.class, () -> cs.getString(1)).getMessage()
                 .contains("not registered"));
         assertThrows(SQLFeatureNotSupportedException.class, () -> cs.getObject(3));
+    }
+
+    @Test
+    void failedExecutionClearsOutValuesOfThePreviousOne() throws Exception {
+        CallableStatement cs = connection.prepareCall("CALL LIB.ADD(?, ?, ?)");
+        cs.setInt(1, 6);
+        cs.setInt(2, 4);
+        cs.registerOutParameter(3, Types.INTEGER);
+        returnOutputParameters(
+                parameter("P1", "INTEGER", 1, null),
+                parameter("P2", "INTEGER", 2, null),
+                parameter("P3", "INTEGER", 3, 10));
+        cs.execute();
+        assertEquals(10, cs.getInt(3));
+
+        doThrow(new RuntimeException("Connection lost")).when(mockJob).query(anyString(), any(QueryOptions.class));
+        assertThrows(SQLException.class, () -> cs.execute());
+        assertTrue(assertThrows(SQLException.class, () -> cs.getInt(3)).getMessage().contains("not been executed"));
+    }
+
+    @Test
+    void characterOutValuesAreReadableAsNStringsAndStreams() throws Exception {
+        CallableStatement cs = connection.prepareCall("CALL LIB.NAME(?, ?)");
+        cs.registerOutParameter(1, Types.NVARCHAR);
+        cs.registerOutParameter(2, Types.VARCHAR);
+        returnOutputParameters(
+                parameter("FIRST", "NVARCHAR", 1, "Zoë"),
+                parameter("LAST", "VARCHAR", 2, null));
+        cs.execute();
+
+        assertEquals("Zoë", cs.getNString(1));
+        assertEquals("Zoë", new BufferedReader(cs.getNCharacterStream(1)).readLine());
+        assertEquals("Zoë", new BufferedReader(cs.getCharacterStream("first")).readLine());
+        assertNull(cs.getCharacterStream(2));
+        assertTrue(cs.wasNull());
+
+        assertEquals("Zoë", cs.getObject(1, Collections.<String, Class<?>>emptyMap()));
+        assertThrows(SQLFeatureNotSupportedException.class,
+                () -> cs.getObject(1, Collections.<String, Class<?>>singletonMap("T", String.class)));
     }
 
     @Test
