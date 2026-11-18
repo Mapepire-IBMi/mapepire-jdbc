@@ -195,8 +195,7 @@ public class MapepireConnection implements Connection {
 
     @Override
     public CallableStatement prepareCall(String sql) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareCall'");
+        return new MapepireCallableStatement(this, sql);
     }
 
     @Override
@@ -388,8 +387,7 @@ public class MapepireConnection implements Connection {
 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareCall'");
+        return new MapepireCallableStatement(this, sql, resultSetType, resultSetConcurrency);
     }
 
     @Override
@@ -457,8 +455,8 @@ public class MapepireConnection implements Connection {
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency,
             int resultSetHoldability) throws SQLException {
-        // TODO Auto-generated method stub
-        throw new SQLFeatureNotSupportedException("Unimplemented method 'prepareCall'");
+        MapepireStatement.checkResultSetHoldability(resultSetHoldability);
+        return prepareCall(sql, resultSetType, resultSetConcurrency);
     }
 
     @Override

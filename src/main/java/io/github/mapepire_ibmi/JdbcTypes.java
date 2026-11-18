@@ -187,6 +187,18 @@ final class JdbcTypes {
         }
     }
 
+    static boolean isBinary(int sqlType) {
+        switch (sqlType) {
+            case Types.BINARY:
+            case Types.VARBINARY:
+            case Types.LONGVARBINARY:
+            case Types.BLOB:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     /**
      * Whether a column of this type can appear in a WHERE clause comparison.
      * Db2 for i does not allow LOB, XML, or DATALINK values in basic predicates.

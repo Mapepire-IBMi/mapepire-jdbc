@@ -13,7 +13,6 @@ import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -95,15 +94,6 @@ class MapepireConnectionTest {
     @Test
     void isClosedReturnsFalseWhileJobIsNotEnded() throws SQLException {
         assertFalse(connection.isClosed());
-    }
-
-    // -------------------------------------------------------------------------
-    // unimplemented methods throw SQLFeatureNotSupportedException (SQLException)
-    // -------------------------------------------------------------------------
-
-    @Test
-    void prepareCallThrowsSQLFeatureNotSupportedException() {
-        assertThrows(SQLFeatureNotSupportedException.class, () -> connection.prepareCall("CALL FOO()"));
     }
 
     // -------------------------------------------------------------------------

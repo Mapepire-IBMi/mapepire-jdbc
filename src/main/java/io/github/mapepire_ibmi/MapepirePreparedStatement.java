@@ -58,6 +58,10 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
         this.sql = sql;
     }
 
+    String getSql() {
+        return this.sql;
+    }
+
     private void setParameter(int parameterIndex, Object value) throws SQLException {
         checkClosed();
         if (parameterIndex < 1) {
@@ -67,15 +71,35 @@ public class MapepirePreparedStatement extends MapepireStatement implements Prep
     }
 
     private List<Object> getParameterList() throws SQLException {
-        int max = this.parameters.isEmpty() ? 0 : this.parameters.lastKey();
+        int max = lastParameterIndex();
         List<Object> list = new ArrayList<>(max);
         for (int i = 1; i <= max; i++) {
-            if (!this.parameters.containsKey(i)) {
-                throw new SQLException("Parameter " + i + " is not set");
-            }
-            list.add(this.parameters.get(i));
+            list.add(parameterValue(i));
         }
         return list;
+    }
+
+    /**
+     * The index of the last parameter sent to the server, which is the highest
+     * index that was set.
+     */
+    int lastParameterIndex() {
+        return this.parameters.isEmpty() ? 0 : this.parameters.lastKey();
+    }
+
+    boolean isParameterSet(int parameterIndex) {
+        return this.parameters.containsKey(parameterIndex);
+    }
+
+    /**
+     * The value sent to the server for a parameter. Every parameter of a
+     * prepared statement must be set.
+     */
+    Object parameterValue(int parameterIndex) throws SQLException {
+        if (!isParameterSet(parameterIndex)) {
+            throw new SQLException("Parameter " + parameterIndex + " is not set");
+        }
+        return this.parameters.get(parameterIndex);
     }
 
     private void executeInternal() throws SQLException {
